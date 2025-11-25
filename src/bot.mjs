@@ -50,6 +50,13 @@ client.on(Events.InteractionCreate, async (interaction) => {
   }
 });
 
+client.on('error', (err) => {
+  console.error('Discord client error:', err);
+});
+client.on('shardError', (err, shardId) => {
+  console.error('Shard error op shard', shardId, err);
+});
+
 process.on('unhandledRejection', (err) => {
   console.error('Unhandled Promise rejection:', err);
   if (isHealthcheck) process.exit(2);
