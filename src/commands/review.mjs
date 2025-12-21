@@ -73,9 +73,9 @@ async function execute(interaction) {
   const stars = interaction.options.getInteger('stars', true);
   const message = interaction.options.getString('message', true);
 
-  const cocToken = process.env.COC_API_TOKEN;
+  const cocToken = process.env.COC_API_TOKEN || process.env.COC_TOKEN;
   if (!cocToken) {
-    return interaction.editReply('Missing COC_API_TOKEN in .env (ask admin to set it).');
+    return interaction.editReply('Missing something ask admin.');
   }
 
   let clan;
