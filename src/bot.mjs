@@ -1,5 +1,5 @@
 import 'dotenv/config';
-import { Client, GatewayIntentBits, Partials, Events } from 'discord.js';
+import { Client, GatewayIntentBits, Partials, Events, REST, Routes } from 'discord.js';
 import { registerCommandsMap } from './commands/index.mjs';
 
 const token = process.env.DISCORD_BOT_TOKEN;
@@ -22,8 +22,19 @@ const client = new Client({
 
 let healthTimeout;
 
-client.once(Events.ClientReady, (c) => {
+client.once(Events.ClientReady, async (c) => {
   console.log(`Bot ingelogd als ${c.user.tag}`);
+  try {
+    if (process.env.AUTO_DEPLOY_COMMANDS === '1' && clientId && guildId) {
+      const rest = new REST({ version: '10' }).setToken(token);
+      const { registerCommands } = await import('./commands/index.mjs');
+      console.log('Auto-deploying slash commands to guild', guildId);
+      await rest.put(Routes.applicationGuildCommands(clientId, guildId), { body: registerCommands.map((cmd) => cmd.toJSON()) });
+      console.log('Slash commands deployed.');
+    }
+  } catch (e) {
+    console.error('Auto-deploy of slash commands failed:', e?.rawError || e);
+  }
   if (isHealthcheck) {
     clearTimeout(healthTimeout);
     console.log('HEALTHCHECK: OK');
