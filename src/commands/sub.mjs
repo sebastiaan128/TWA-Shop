@@ -16,6 +16,16 @@ const data = new SlashCommandBuilder()
     );
 
 async function execute(interaction) {
+    const requiredRoleId = process.env.SUB_REQUIRED_ROLE_ID;
+    if (requiredRoleId) {
+        const member = await interaction.guild.members.fetch(interaction.user.id);
+        const requiredRole = interaction.guild.roles.cache.get(requiredRoleId);
+        const hasAccess = requiredRole && member.roles.cache.some(r => r.position >= requiredRole.position);
+        if (!hasAccess) {
+            return interaction.reply({ content: 'Je hebt niet de juiste rol om dit commando te gebruiken.', ephemeral: true });
+        }
+    }
+
     await interaction.deferReply({ ephemeral: true });
     const month = interaction.options.getString('month', true);
     const url = process.env.LEGEND_API_URL;
