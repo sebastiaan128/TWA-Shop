@@ -8,5 +8,5 @@ export const registerCommandsMap = new Map([
   [ping.data.name, ping],
   [role.data.name, role],
   [review.data.name, review],
-  [sub.data.name, sub]
+  [sub.data.name, sub],
 ]);
