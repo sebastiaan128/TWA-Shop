@@ -4,6 +4,7 @@ import dotenv from 'dotenv';
 import { Client, GatewayIntentBits, Partials, Events, REST, Routes, EmbedBuilder } from 'discord.js';
 import { generateFromMessages } from 'discord-html-transcripts';
 import { registerCommandsMap } from './commands/index.mjs';
+import { handleCloseTicket, handleDeleteTicket } from './tickets.mjs';
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
 dotenv.config({ path: path.resolve(__dirname, '../.env') });
@@ -159,47 +160,9 @@ client.on(Events.InteractionCreate, async (interaction) => {
   if (interaction.isButton()) {
     try {
       if (interaction.customId === 'close_ticket') {
-        await interaction.deferReply({ ephemeral: true });
-        const channel = interaction.channel;
-
-        // Deny SEND_MESSAGES for @everyone to lock the channel
-        await channel.permissionOverwrites.edit(interaction.guildId, {
-          SendMessages: false,
-        });
-
-        // Disable the close button on the original message
-        await interaction.message.edit({ components: [{
-          type: 1,
-          components: [{
-            type: 2,
-            style: 2,
-            label: 'Ticket Closed',
-            emoji: { name: '🔒' },
-            custom_id: 'close_ticket',
-            disabled: true,
-          }],
-        }] });
-
-        // Send a locked message with a delete button
-        await channel.send({
-          content: `🔒 Ticket gesloten door <@${interaction.user.id}>`,
-          components: [{
-            type: 1,
-            components: [{
-              type: 2,
-              style: 4,
-              label: 'Delete Ticket',
-              emoji: { name: '🗑️' },
-              custom_id: 'delete_ticket',
-            }],
-          }],
-        });
-
-        await interaction.editReply({ content: 'Ticket gesloten.' });
+        await handleCloseTicket(interaction);
       } else if (interaction.customId === 'delete_ticket') {
-        await interaction.deferReply({ ephemeral: true });
-        await postTranscript(interaction.channel);
-        await interaction.channel.delete();
+        await handleDeleteTicket(interaction, postTranscript);
       }
     } catch (err) {
       console.error('Fout bij button interactie', err);

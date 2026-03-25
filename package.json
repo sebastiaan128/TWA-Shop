@@ -8,6 +8,7 @@
   "scripts": {
     "start": "node src/bot.mjs",
     "dev": "node --watch src/bot.mjs",
+    "test": "vitest run",
     "deploy:commands": "node src/deploy-commands.mjs",
     "invite:url": "node src/create-invite-url.mjs"
   },
@@ -18,5 +19,8 @@
     "discord-html-transcripts": "^3.2.0",
     "discord.js": "^14.16.0",
     "dotenv": "^16.3.1"
+  },
+  "devDependencies": {
+    "vitest": "^3.2.4"
   }
 }
