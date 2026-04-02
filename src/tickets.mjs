@@ -2,6 +2,9 @@
  * Ticket close & delete handlers, extracted for testability.
  */
 
+// Only this role (and higher/admins) can still type after a ticket is closed
+const STAFF_ROLE_ID = '1387134682747113473';
+
 export async function handleCloseTicket(interaction) {
   await interaction.deferReply({ ephemeral: true });
   const channel = interaction.channel;
@@ -9,6 +12,11 @@ export async function handleCloseTicket(interaction) {
   // Deny SEND_MESSAGES for @everyone to lock the channel
   await channel.permissionOverwrites.edit(interaction.guildId, {
     SendMessages: false,
+  });
+
+  // Allow the staff role to keep sending messages after close
+  await channel.permissionOverwrites.edit(STAFF_ROLE_ID, {
+    SendMessages: true,
   });
 
   // Also deny SendMessages for each individual user overwrite so member-level perms don't override @everyone
@@ -25,7 +33,7 @@ export async function handleCloseTicket(interaction) {
       components: [{
         type: 2,
         style: 2,
-        label: 'Ticket Closed',
+        label: 'Close Ticket',
         emoji: { name: '🔒' },
         custom_id: 'close_ticket',
         disabled: true,
