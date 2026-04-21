@@ -44,8 +44,22 @@ async function execute(interaction) {
     if (result.count === 0) {
         return interaction.editReply(`Niemand heeft een Legend League sub gekocht voor **${month}**.`);
     }
+
+    // Bulk-fetch live Discord usernames (fixes old entries that only stored displayName)
+    const userIds = [...new Set(result.buyers.filter(b => b.discordUserId).map(b => b.discordUserId))];
+    const memberMap = new Map();
+    if (userIds.length > 0) {
+        try {
+            const fetched = await interaction.guild.members.fetch({ user: userIds });
+            fetched.forEach(m => memberMap.set(m.id, m.user.username));
+        } catch { /* fall back to stored name */ }
+    }
+
     const header = `**Legend League subs — ${month}** (${result.count})\n`;
-    const lines = result.buyers.map((b, i) => `${i + 1}. ${b.username}`);
+    const lines = result.buyers.map((b, i) => {
+        const name = (b.discordUserId && memberMap.get(b.discordUserId)) || b.username;
+        return `${i + 1}. ${name}`;
+    });
 
     const chunks = [];
     let current = header;
