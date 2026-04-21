@@ -44,11 +44,27 @@ async function execute(interaction) {
     if (result.count === 0) {
         return interaction.editReply(`Niemand heeft een Legend League sub gekocht voor **${month}**.`);
     }
+    const header = `**Legend League subs — ${month}** (${result.count})\n`;
     const lines = result.buyers.map((b, i) => {
         const mention = b.discordUserId ? ` (<@${b.discordUserId}>)` : '';
         return `${i + 1}. **${b.displayName}**${mention}`;
     });
-    return interaction.editReply(`**Legend League subs — ${month}** (${result.count})\n${lines.join('\n')}`);
+
+    const chunks = [];
+    let current = header;
+    for (const line of lines) {
+        if (current.length + line.length + 1 > 1900) {
+            chunks.push(current);
+            current = '';
+        }
+        current += line + '\n';
+    }
+    if (current) chunks.push(current);
+
+    await interaction.editReply(chunks[0]);
+    for (const chunk of chunks.slice(1)) {
+        await interaction.followUp({ content: chunk, ephemeral: true });
+    }
 }
 
 export default { data, execute };
