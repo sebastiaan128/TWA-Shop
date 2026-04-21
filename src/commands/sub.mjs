@@ -44,7 +44,10 @@ async function execute(interaction) {
     if (result.count === 0) {
         return interaction.editReply(`Niemand heeft een Legend League sub gekocht voor **${month}**.`);
     }
-    const lines = result.buyers.map((b, i) => `${i + 1}. **${b.displayName}**`);
+    const lines = result.buyers.map((b, i) => {
+        const mention = b.discordUserId ? ` (<@${b.discordUserId}>)` : '';
+        return `${i + 1}. **${b.displayName}**${mention}`;
+    });
     return interaction.editReply(`**Legend League subs — ${month}** (${result.count})\n${lines.join('\n')}`);
 }
 
