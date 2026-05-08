@@ -91,7 +91,7 @@ export function buildEodEmbeds(data, filtered, { title = 'TWA Legend League', cl
     const headerLine =
         'GAIN'.padEnd(COL_GAIN) +
         'LOSS'.padEnd(COL_LOSS) +
-        'FINAL'.padEnd(COL_FINAL) +
+        'FINAL'.padEnd(COL_FINAL) + '  ' +
         'NAME';
 
     const rows = sorted.map((p, i) => {
@@ -104,7 +104,7 @@ export function buildEodEmbeds(data, filtered, { title = 'TWA Legend League', cl
         return (
             padCell(gain, COL_GAIN) +
             padCell(loss, COL_LOSS) +
-            final.padEnd(COL_FINAL) +
+            final.padEnd(COL_FINAL) + '  ' +
             name + star
         ).trimEnd();
     });
