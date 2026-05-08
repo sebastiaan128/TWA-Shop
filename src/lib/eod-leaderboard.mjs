@@ -4,11 +4,11 @@ const TWA_COLOR = 0x06b6d4;
 const TWA_AUTHOR_ICON = 'https://twabases.com/assets/Logo.png';
 
 function fmtMove(prevRank, currentRank) {
-    if (prevRank == null) return ' new';
+    if (prevRank == null) return 'NEW';
     const diff = prevRank - currentRank;
-    if (diff > 0) return `+${diff}`.padStart(4, ' ');
-    if (diff < 0) return `${diff}`.padStart(4, ' ');
-    return '   =';
+    if (diff > 0) return `▲ ${diff}`;
+    if (diff < 0) return `▼ ${-diff}`;
+    return '= 0';
 }
 
 function fmtSigned(d) {
@@ -71,7 +71,6 @@ export function buildEodEmbeds(data, filtered, { title } = {}) {
         .setTitle(title || `End of Day  ·  ${dateStr}`)
         .setDescription(chunks[0] || '_Geen spelers in de snapshot._')
         .setColor(TWA_COLOR)
-        .setFooter({ text: 'trophies · today · rank Δ' })
         .setTimestamp();
 
     const embeds = [header];
