@@ -113,30 +113,26 @@ export function buildEodMessages(data, filtered, { title = 'TWA Legend League', 
     const subtitleLine = `Legend League Attacks · End of Day ${dayInSeason}/${seasonLength} · ${seasonId}`;
     const footerLine = `End of Day ${dayInSeason}/${seasonLength} (${seasonId})`;
 
-    // Discord hard message limit is 2000 chars. Split rows into chunks if needed.
+    // Wrap each row in single-backtick inline code so the codeblock background
+    // fits the content width instead of the full message column.
+    const inlineHeader = `\`${headerLine}\``;
+    const inlineRows = rows.map((r) => `\`${r}\``);
+
     const messages = [];
-    const wrapBody = (bodyRows) =>
-        '```\n' + headerLine + '\n' + bodyRows.join('\n') + '\n```';
-
-    let currentRows = [];
-    let currentLen = wrapBody([]).length;
-
-    for (const row of rows) {
-        const projected = currentLen + row.length + 1;
-        if (projected > 1800 && currentRows.length) {
-            messages.push(wrapBody(currentRows));
-            currentRows = [];
-            currentLen = wrapBody([]).length;
+    let buf = inlineHeader;
+    for (const row of inlineRows) {
+        if (buf.length + row.length + 1 > 1800) {
+            messages.push(buf);
+            buf = inlineHeader;
         }
-        currentRows.push(row);
-        currentLen += row.length + 1;
+        buf += '\n' + row;
     }
-    if (currentRows.length) messages.push(wrapBody(currentRows));
+    if (buf) messages.push(buf);
 
-    if (!messages.length) messages.push(wrapBody(['(geen spelers in de snapshot)']));
+    if (!messages.length) messages.push(`\`${headerLine}\`\n\`(geen spelers in de snapshot)\``);
 
     // Prepend title/subtitle to first, append footer to last.
-    messages[0] = `${titleLine}\n${subtitleLine}\n\n${messages[0]}`;
+    messages[0] = `${titleLine}\n${subtitleLine}\n${messages[0]}`;
     messages[messages.length - 1] = `${messages[messages.length - 1]}\n${footerLine}`;
 
     return messages;
