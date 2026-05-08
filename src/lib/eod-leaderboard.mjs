@@ -55,24 +55,37 @@ export function buildEodLines(filtered) {
     const nameWidth = Math.max(4, ...cleanNames.map((n) => n.length));
 
     return filtered.map((p, i) => {
-        const delta = p.todayDelta;
         const atks = p.dailyAttacks ?? 0;
         const defs = p.dailyDefenses ?? 0;
+        const hasReal = typeof p.dailyGain === 'number' || typeof p.dailyLoss === 'number';
 
-        let gainCell = '';
-        let lossCell = '';
-        if (delta == null) {
-            gainCell = `${C.muted}—${C.reset}`;
-            lossCell = `${C.muted}—${C.reset}`;
-        } else if (delta > 0) {
-            gainCell = `${C.green}+${delta}${toSuper(atks)}${C.reset}`;
-            lossCell = defs > 0 ? `${C.muted}${toSuper(defs)}${C.reset}` : '';
-        } else if (delta < 0) {
-            gainCell = atks > 0 ? `${C.muted}${toSuper(atks)}${C.reset}` : '';
-            lossCell = `${C.red}${delta}${toSuper(defs)}${C.reset}`;
+        let gainCell;
+        let lossCell;
+        if (hasReal) {
+            const gain = p.dailyGain ?? 0;
+            const loss = p.dailyLoss ?? 0;
+            gainCell = gain > 0 || atks > 0
+                ? `${C.green}+${gain}${toSuper(atks)}${C.reset}`
+                : '';
+            lossCell = loss > 0 || defs > 0
+                ? `${C.red}-${loss}${toSuper(defs)}${C.reset}`
+                : '';
         } else {
-            gainCell = `${C.muted}0${toSuper(atks)}${C.reset}`;
-            lossCell = `${C.muted}${toSuper(defs)}${C.reset}`;
+            // Fallback: only net delta available
+            const delta = p.todayDelta;
+            if (delta == null) {
+                gainCell = `${C.muted}—${C.reset}`;
+                lossCell = `${C.muted}—${C.reset}`;
+            } else if (delta > 0) {
+                gainCell = `${C.green}+${delta}${toSuper(atks)}${C.reset}`;
+                lossCell = defs > 0 ? `${C.muted}${toSuper(defs)}${C.reset}` : '';
+            } else if (delta < 0) {
+                gainCell = atks > 0 ? `${C.muted}${toSuper(atks)}${C.reset}` : '';
+                lossCell = `${C.red}${delta}${toSuper(defs)}${C.reset}`;
+            } else {
+                gainCell = `${C.muted}0${toSuper(atks)}${C.reset}`;
+                lossCell = `${C.muted}${toSuper(defs)}${C.reset}`;
+            }
         }
 
         const final = `${C.white}${p.trophies ?? 0}${C.reset}`;
@@ -81,7 +94,7 @@ export function buildEodLines(filtered) {
         return (
             padStartVisual(gainCell, 7) +
             '  ' +
-            padStartVisual(lossCell, 6) +
+            padStartVisual(lossCell, 7) +
             '   ' +
             padEndVisual(final, 5) +
             '  ' +
@@ -110,7 +123,7 @@ function buildHeader(filtered) {
     const labels =
         padStartVisual('GAIN', 7) +
         '  ' +
-        padStartVisual('LOSS', 6) +
+        padStartVisual('LOSS', 7) +
         '   ' +
         padEndVisual('FINAL', 5) +
         '  ' +
