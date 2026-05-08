@@ -2,17 +2,55 @@ import { EmbedBuilder } from 'discord.js';
 
 const TWA_COLOR = 0x1a1f2e;
 const TWA_AUTHOR_ICON = 'https://twabases.com/assets/Logo.png';
-const ESC = '\x1b';
-const C = {
-    reset: `${ESC}[0m`,
-    muted: `${ESC}[2;37m`,
-    white: `${ESC}[1;37m`,
-    green: `${ESC}[2;32m`,
-    red: `${ESC}[2;31m`,
-};
+const LRM = '‎';
 
 const SUP = { '0': '⁰', '1': '¹', '2': '²', '3': '³', '4': '⁴', '5': '⁵', '6': '⁶', '7': '⁷', '8': '⁸', '9': '⁹' };
 const toSuper = (n) => (n == null ? '' : String(n).split('').map((c) => SUP[c] ?? c).join(''));
+
+function stripWideChars(s) {
+    return s.replace(/[\p{Extended_Pictographic}‍️​]/gu, '').trim();
+}
+
+// Treat superscript digits as width-1 like the rest of the code-block monospace.
+function visualLength(s) {
+    return [...s].length;
+}
+
+function padEndV(s, n) {
+    return s + ' '.repeat(Math.max(0, n - visualLength(s)));
+}
+
+// Last Monday of a given UTC year/month (month is 1–12).
+function lastMondayOfMonth(year, month) {
+    const last = new Date(Date.UTC(year, month, 0));
+    const day = last.getUTCDay(); // 0=Sun..6=Sat
+    const back = (day - 1 + 7) % 7;
+    last.setUTCDate(last.getUTCDate() - back);
+    return last;
+}
+
+// Returns { seasonId: 'YYYY-MM', dayInSeason, seasonLength } for a snapshot date.
+// CoC Legend season ends on the last Monday of the calendar month it's named after.
+function seasonInfo(snapshotDateStr) {
+    if (!snapshotDateStr) return { seasonId: '—', dayInSeason: 0, seasonLength: 0 };
+    const [Y, M, D] = snapshotDateStr.split('-').map(Number);
+    const today = new Date(Date.UTC(Y, M - 1, D));
+    let seasonEndY = Y, seasonEndM = M;
+    let seasonEnd = lastMondayOfMonth(seasonEndY, seasonEndM);
+    if (today > seasonEnd) {
+        // Snapshot is past this month's reset → it belongs to next season.
+        seasonEndM += 1;
+        if (seasonEndM === 13) { seasonEndM = 1; seasonEndY += 1; }
+        seasonEnd = lastMondayOfMonth(seasonEndY, seasonEndM);
+    }
+    let prevY = seasonEndY, prevM = seasonEndM - 1;
+    if (prevM === 0) { prevM = 12; prevY -= 1; }
+    const prevEnd = lastMondayOfMonth(prevY, prevM);
+    const day = Math.round((today - prevEnd) / 86400000);
+    const length = Math.round((seasonEnd - prevEnd) / 86400000);
+    const seasonId = `${seasonEndY}-${String(seasonEndM).padStart(2, '0')}`;
+    return { seasonId, dayInSeason: day, seasonLength: length };
+}
 
 function buildYesterdayRankMap(players) {
     const withYesterday = players
@@ -29,123 +67,91 @@ function buildYesterdayRankMap(players) {
     withYesterday.forEach((p, i) => map.set(p.tag, i + 1));
     return map;
 }
+export { buildYesterdayRankMap };
 
-// Strip emoji/symbols that would break monospace alignment.
-function stripWideChars(s) {
-    return s.replace(/[\p{Extended_Pictographic}‍️​]/gu, '').trim();
+function fmtGain(amount, count) {
+    if (!(amount > 0)) return '—';
+    return `+${amount}${toSuper(count ?? 0)}`;
 }
 
-function visualLength(s) {
-    // eslint-disable-next-line no-control-regex
-    return s.replace(/\x1b\[[0-9;]*m/g, '').length;
+function fmtLoss(amount, count) {
+    if (!(amount > 0)) return '—';
+    return `-${amount}${toSuper(count ?? 0)}`;
 }
 
-function padEndVisual(s, n) {
-    const len = visualLength(s);
-    return s + ' '.repeat(Math.max(0, n - len));
-}
-
-function padStartVisual(s, n) {
-    const len = visualLength(s);
-    return ' '.repeat(Math.max(0, n - len)) + s;
-}
+const COL = { gain: 5, loss: 5, final: 5 };
 
 export function buildEodLines(filtered) {
-    const cleanNames = filtered.map((p) => stripWideChars(p.name || p.tag).slice(0, 16) || p.tag);
-    const nameWidth = Math.max(4, ...cleanNames.map((n) => n.length));
-
-    const dash = `${C.muted}—${C.reset}`;
-    const buildGain = (amount, count) =>
-        amount > 0 ? `${C.green}+${amount}${toSuper(count)}${C.reset}` : dash;
-    const buildLoss = (amount, count) =>
-        amount > 0 ? `${C.red}-${amount}${toSuper(count)}${C.reset}` : dash;
-
-    return filtered.map((p, i) => {
+    return filtered.map((p) => {
         const atks = p.dailyAttacks ?? 0;
         const defs = p.dailyDefenses ?? 0;
         const hasReal = typeof p.dailyGain === 'number' || typeof p.dailyLoss === 'number';
 
-        let gainCell;
-        let lossCell;
+        let gain;
+        let loss;
         if (hasReal) {
-            gainCell = buildGain(p.dailyGain ?? 0, atks);
-            lossCell = buildLoss(p.dailyLoss ?? 0, defs);
+            gain = fmtGain(p.dailyGain ?? 0, atks);
+            loss = fmtLoss(p.dailyLoss ?? 0, defs);
         } else {
-            // Fallback: only net delta available — split it into one side.
             const delta = p.todayDelta;
-            if (delta == null) {
-                gainCell = dash;
-                lossCell = dash;
+            if (delta == null || delta === 0) {
+                gain = '—';
+                loss = '—';
             } else if (delta > 0) {
-                gainCell = buildGain(delta, atks);
-                lossCell = dash;
-            } else if (delta < 0) {
-                gainCell = dash;
-                lossCell = buildLoss(-delta, defs);
+                gain = fmtGain(delta, atks);
+                loss = '—';
             } else {
-                gainCell = dash;
-                lossCell = dash;
+                gain = '—';
+                loss = fmtLoss(-delta, defs);
             }
         }
 
-        const final = `${C.white}${p.trophies ?? 0}${C.reset}`;
-        const name = `${C.white}${cleanNames[i]}${C.reset}`;
+        const final = String(p.trophies ?? 0);
+        const name = LRM + (stripWideChars(p.name || p.tag) || p.tag);
 
         return (
-            padStartVisual(gainCell, 7) +
-            '  ' +
-            padStartVisual(lossCell, 7) +
-            '   ' +
-            padEndVisual(final, 5) +
-            '  ' +
-            padEndVisual(name, nameWidth)
+            padEndV(gain, COL.gain) + '  ' +
+            padEndV(loss, COL.loss) + '  ' +
+            padEndV(final, COL.final) + '  ' +
+            name
         );
     });
 }
 
-function chunkLines(lines, header, max = 3900) {
+const HEADER =
+    '```\n' +
+    padEndV('GAIN', COL.gain) + '  ' +
+    padEndV('LOSS', COL.loss) + '  ' +
+    padEndV('FINAL', COL.final) + '  ' +
+    'NAME\n';
+
+function chunkLines(lines, max = 3900) {
     const chunks = [];
-    let current = header;
+    let current = HEADER;
     for (const line of lines) {
         if (current.length + line.length + 1 > max) {
             chunks.push(current);
-            current = header;
+            current = HEADER;
         }
         current += line + '\n';
     }
-    if (current.length > header.length) chunks.push(current);
+    if (current.length > HEADER.length) chunks.push(current);
     return chunks;
-}
-
-function buildHeader(filtered) {
-    const cleanNames = filtered.map((p) => stripWideChars(p.name || p.tag).slice(0, 16) || p.tag);
-    const nameWidth = Math.max(4, ...cleanNames.map((n) => n.length));
-    const labels =
-        padStartVisual('GAIN', 7) +
-        '  ' +
-        padStartVisual('LOSS', 7) +
-        '   ' +
-        padEndVisual('FINAL', 5) +
-        '  ' +
-        padEndVisual('NAME', nameWidth);
-    return '```ansi\n' + `${C.muted}${labels}${C.reset}\n`;
 }
 
 export function buildEodEmbeds(data, filtered, { title } = {}) {
     const lines = buildEodLines(filtered);
-    const header = buildHeader(filtered);
     const dateStr = data.snapshotDate || '—';
-    const day = dateStr.slice(8, 10);
-    const month = dateStr.slice(0, 7);
+    const { seasonId, dayInSeason, seasonLength } = seasonInfo(dateStr);
 
-    const chunks = chunkLines(lines, header).map((c) => c + '```');
+    const chunks = chunkLines(lines).map((c) => c + '```');
 
     const head = new EmbedBuilder()
-        .setAuthor({ name: 'TWA  ·  Legend League Attacks', iconURL: TWA_AUTHOR_ICON })
-        .setTitle(title || `End of Day · ${dateStr}`)
+        .setAuthor({ name: 'TWA', iconURL: TWA_AUTHOR_ICON })
+        .setTitle(title || 'Legend League Attacks')
         .setDescription(chunks[0] || '_Geen spelers in de snapshot._')
         .setColor(TWA_COLOR)
-        .setFooter({ text: `End of Day ${day} (${month})` });
+        .setFooter({ text: `End of Day ${dayInSeason}/${seasonLength} (${seasonId})` });
 
     const embeds = [head];
     for (let i = 1; i < chunks.length; i++) {
