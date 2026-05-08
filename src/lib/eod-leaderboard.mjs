@@ -104,10 +104,11 @@ export function buildEodEmbeds(data, filtered, { title = 'TWA Legend League', cl
     const FS = ' ';
     const padFS = (s, n) => s + FS.repeat(Math.max(0, n - [...s].length));
 
+    const SEP = FS + FS;
     const headerLine = toMono(
         padFS('GAIN', COL_GAIN) +
         padFS('LOSS', COL_LOSS) +
-        padFS('FINAL', COL_FINAL) +
+        padFS('FINAL', COL_FINAL) + SEP +
         'NAME',
     );
 
@@ -121,7 +122,7 @@ export function buildEodEmbeds(data, filtered, { title = 'TWA Legend League', cl
         const line =
             padFS(gain, COL_GAIN) +
             padFS(loss, COL_LOSS) +
-            padFS(final, COL_FINAL) +
+            padFS(final, COL_FINAL) + SEP +
             name + star;
         return toMono(line);
     });
