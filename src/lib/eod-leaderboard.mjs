@@ -70,14 +70,44 @@ function fmtLoss(p) {
     return typeof d === 'number' && d < 0 ? `${d}${sup(lostDefs)}` : '—';
 }
 
-const NAME_MAX = 20;
+const COL_GAIN = 6;
+const COL_LOSS = 6;
+const COL_FINAL = 5;
+const NAME_MAX = 14;
+const FS = ' '; // U+2007 figure space — fixed-width as a digit
+
+// Map ASCII letters/digits to Unicode Mathematical Monospace and convert
+// regular spaces and +/- to fixed-width variants so the table aligns
+// without using a code block (which would add a dark background).
+function toMono(s) {
+    return [...s].map((c) => {
+        const code = c.codePointAt(0);
+        if (code >= 0x41 && code <= 0x5A) return String.fromCodePoint(0x1D670 + code - 0x41); // A-Z
+        if (code >= 0x61 && code <= 0x7A) return String.fromCodePoint(0x1D68A + code - 0x61); // a-z
+        if (code >= 0x30 && code <= 0x39) return String.fromCodePoint(0x1D7F6 + code - 0x30); // 0-9
+        if (c === '+') return '＋';
+        if (c === '-') return '－';
+        if (c === ' ') return FS;
+        return c;
+    }).join('');
+}
+
+function padFS(s, n) {
+    return s + FS.repeat(Math.max(0, n - [...s].length));
+}
 
 export function buildEodEmbeds(data, filtered, { title = 'TWA Legend League', clanTag = '' } = {}) {
     const sorted = [...filtered].sort((a, b) => (b.trophies ?? 0) - (a.trophies ?? 0));
     const { seasonId, dayInSeason, seasonLength } = seasonInfo(data.snapshotDate);
 
-    // Plain markdown rows — normal Discord font, no background, no monospace.
-    // Columns won't perfectly align (proportional font) but it reads cleanly.
+    const SEP = FS + FS;
+    const headerLine = toMono(
+        padFS('GAIN', COL_GAIN) +
+        padFS('LOSS', COL_LOSS) +
+        padFS('FINAL', COL_FINAL) + SEP +
+        'NAME',
+    );
+
     const rows = sorted.map((p, i) => {
         const gain = fmtGain(p);
         const loss = fmtLoss(p);
@@ -85,20 +115,25 @@ export function buildEodEmbeds(data, filtered, { title = 'TWA Legend League', cl
         const rawName = stripWideChars(p.name || p.tag) || p.tag;
         const name = rawName.length > NAME_MAX ? rawName.slice(0, NAME_MAX - 1) + '…' : rawName;
         const star = i === 0 ? ' ★' : '';
-        return `**${i + 1}.** ${name}${star} — **${final}** · ${gain} / ${loss}`;
+        const line =
+            padFS(gain, COL_GAIN) +
+            padFS(loss, COL_LOSS) +
+            padFS(final, COL_FINAL) + SEP +
+            name + star;
+        return toMono(line);
     });
 
     const descriptions = [];
-    let buf = '';
+    let buf = headerLine;
     for (const row of rows) {
-        if (buf.length + row.length + 1 > 3900 && buf) {
+        if (buf.length + row.length + 1 > 3900) {
             descriptions.push(buf);
-            buf = '';
+            buf = headerLine;
         }
-        buf += (buf ? '\n' : '') + row;
+        buf += '\n' + row;
     }
     if (buf) descriptions.push(buf);
-    if (!descriptions.length) descriptions.push('_(geen spelers in de snapshot)_');
+    if (!descriptions.length) descriptions.push(`${headerLine}\n_(geen spelers in de snapshot)_`);
 
     const fullTitle = `🏆 ${title}${clanTag ? ` (${clanTag})` : ''} · End of Day ${dayInSeason}/${seasonLength}`;
 
