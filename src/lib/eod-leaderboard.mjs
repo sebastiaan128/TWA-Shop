@@ -2,31 +2,19 @@ import { EmbedBuilder } from 'discord.js';
 
 const TWA_COLOR = 0x06b6d4;
 const TWA_AUTHOR_ICON = 'https://twabases.com/assets/Logo.png';
-const TWA_THUMB = 'https://twabases.com/assets/TWACUP.png';
 
-const SUP = { '0': '⁰', '1': '¹', '2': '²', '3': '³', '4': '⁴', '5': '⁵', '6': '⁶', '7': '⁷', '8': '⁸', '9': '⁹' };
-const toSuper = (n) => (n == null ? '' : String(n).split('').map((c) => SUP[c] ?? c).join(''));
+function fmtMove(prevRank, currentRank) {
+    if (prevRank == null) return 'NEW';
+    const diff = prevRank - currentRank;
+    if (diff > 0) return `+${diff}`;
+    if (diff < 0) return `${diff}`;
+    return '  =';
+}
 
 function fmtDelta(d) {
-    if (d == null) return '   · ';
+    if (d == null) return '    ';
     if (d > 0) return `+${d}`;
-    if (d < 0) return `${d}`;
-    return '·0';
-}
-
-function rankMedal(rank) {
-    if (rank === 1) return '🥇';
-    if (rank === 2) return '🥈';
-    if (rank === 3) return '🥉';
-    return `\`#${String(rank).padStart(2, ' ')}\``;
-}
-
-function movementBadge(prevRank, currentRank) {
-    if (prevRank == null) return '🆕';
-    const diff = prevRank - currentRank;
-    if (diff > 0) return `🔺${diff}`;
-    if (diff < 0) return `🔻${-diff}`;
-    return '➖';
+    return `${d}`;
 }
 
 function buildYesterdayRankMap(players) {
@@ -47,49 +35,66 @@ function buildYesterdayRankMap(players) {
 
 export function buildEodLines(filtered) {
     const yMap = buildYesterdayRankMap(filtered);
+
+    const widths = {
+        name: Math.min(20, Math.max(...filtered.map((p) => (p.name || p.tag).length))),
+        clan: Math.min(15, Math.max(0, ...filtered.map((p) => p.clan?.name?.length || 0))),
+    };
+
     return filtered.map((p) => {
-        const medal = rankMedal(p.rank);
-        const move = movementBadge(yMap.get(p.tag), p.rank).padEnd(4, ' ');
+        const rank = String(p.rank).padStart(2, ' ');
+        const move = fmtMove(yMap.get(p.tag), p.rank).padStart(4, ' ');
         const trophies = String(p.trophies ?? 0).padStart(5, ' ');
         const delta = fmtDelta(p.todayDelta).padStart(5, ' ');
-        const ad = `${toSuper(p.dailyAttacks ?? 0)}⁄${toSuper(p.dailyDefenses ?? 0)}`;
-        const name = (p.name || p.tag).slice(0, 18);
-        const clan = p.clan?.name ? ` · \`${p.clan.name.slice(0, 10)}\`` : '';
-        return `${medal} \`${move}\` \`${trophies}🏆\` \`${delta}\` \`${ad}\` **${name}**${clan}`;
+        const ad = `${p.dailyAttacks ?? 0}/${p.dailyDefenses ?? 0}`.padStart(4, ' ');
+        const name = (p.name || p.tag).slice(0, widths.name).padEnd(widths.name, ' ');
+        const clan = (p.clan?.name || '').slice(0, widths.clan).padEnd(widths.clan, ' ');
+        return `${rank}  ${move}  ${trophies}  ${delta}  ${ad}  ${name}  ${clan}`;
     });
 }
 
-function chunkLines(lines, max = 3800) {
+function chunkLines(lines, header, max = 3900) {
     const chunks = [];
-    let current = '';
+    let current = header;
     for (const line of lines) {
         if (current.length + line.length + 1 > max) {
             chunks.push(current);
-            current = '';
+            current = header;
         }
         current += line + '\n';
     }
-    if (current) chunks.push(current);
+    if (current.trim().length > header.trim().length) chunks.push(current);
     return chunks;
 }
 
 export function buildEodEmbeds(data, filtered, { title } = {}) {
     const lines = buildEodLines(filtered);
-    const chunks = chunkLines(lines);
     const dateStr = data.snapshotDate || '—';
+
+    const widths = {
+        name: Math.min(20, Math.max(...filtered.map((p) => (p.name || p.tag).length))),
+        clan: Math.min(15, Math.max(0, ...filtered.map((p) => p.clan?.name?.length || 0))),
+    };
+    const headerLine =
+        '```ansi\n' +
+        '[1;36m' +
+        ' #    Δr   troph    today  a/d   ' +
+        'player'.padEnd(widths.name, ' ') + '  ' +
+        'clan'.padEnd(widths.clan, ' ') + '[0m\n';
+
+    const chunks = chunkLines(lines, headerLine);
+    const closed = chunks.map((c) => c + '```');
 
     const header = new EmbedBuilder()
         .setAuthor({ name: 'TWA · Legend League', iconURL: TWA_AUTHOR_ICON })
-        .setTitle(title || `🏆 End of Day · ${dateStr}`)
-        .setThumbnail(TWA_THUMB)
-        .setDescription(chunks[0] || '_Geen spelers in de snapshot._')
-        .setFooter({ text: `${filtered.length} subs · rank · Δrank · 🏆 · Δtoday · atk⁄def · clan`, iconURL: TWA_AUTHOR_ICON })
+        .setTitle(title || `End of Day — ${dateStr}`)
+        .setDescription(closed[0] || '_Geen spelers in de snapshot._')
         .setColor(TWA_COLOR)
         .setTimestamp();
 
     const embeds = [header];
-    for (let i = 1; i < chunks.length; i++) {
-        embeds.push(new EmbedBuilder().setDescription(chunks[i]).setColor(TWA_COLOR));
+    for (let i = 1; i < closed.length; i++) {
+        embeds.push(new EmbedBuilder().setDescription(closed[i]).setColor(TWA_COLOR));
     }
     return embeds;
 }
