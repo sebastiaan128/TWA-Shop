@@ -43,6 +43,8 @@ function fmtGain(p) {
     if (typeof p.attackCount === 'number') {
         atks = p.attackCount;
     } else if (typeof p.todayDelta === 'number' && p.todayDelta > 0) {
+        // Fallback: estimate count of attacks purely from the net gain,
+        // mirroring how LOSS count is estimated.
         atks = Math.max(1, Math.round(p.todayDelta / AVG_PER_ACTION));
     } else {
         atks = p.dailyAttacks ?? 0;
@@ -59,6 +61,7 @@ function fmtLoss(p) {
     if (typeof p.lostDefenseCount === 'number') {
         lostDefs = p.lostDefenseCount;
     } else if (typeof p.todayDelta === 'number' && p.todayDelta < 0) {
+        // Fallback: estimate count of lost defenses purely from the net loss.
         lostDefs = Math.max(1, Math.round(-p.todayDelta / AVG_PER_ACTION));
     } else {
         lostDefs = 0;
@@ -73,40 +76,23 @@ function fmtLoss(p) {
 const COL_GAIN = 6;
 const COL_LOSS = 6;
 const COL_FINAL = 5;
-const NAME_MAX = 14;
-const FS = ' '; // U+2007 figure space — fixed-width as a digit
+const NAME_MAX = 13;
 
-// Map ASCII letters/digits to Unicode Mathematical Monospace and convert
-// regular spaces and +/- to fixed-width variants so the table aligns
-// without using a code block (which would add a dark background).
-function toMono(s) {
-    return [...s].map((c) => {
-        const code = c.codePointAt(0);
-        if (code >= 0x41 && code <= 0x5A) return String.fromCodePoint(0x1D670 + code - 0x41); // A-Z
-        if (code >= 0x61 && code <= 0x7A) return String.fromCodePoint(0x1D68A + code - 0x61); // a-z
-        if (code >= 0x30 && code <= 0x39) return String.fromCodePoint(0x1D7F6 + code - 0x30); // 0-9
-        if (c === '+') return '＋';
-        if (c === '-') return '－';
-        if (c === ' ') return FS;
-        return c;
-    }).join('');
-}
-
-function padFS(s, n) {
-    return s + FS.repeat(Math.max(0, n - [...s].length));
+// Discord monospace renders superscript digits at the same advance width as
+// normal digits, so plain padEnd is enough — no compensation needed.
+function padCell(value, width) {
+    return value.padEnd(width);
 }
 
 export function buildEodEmbeds(data, filtered, { title = 'TWA Legend League', clanTag = '' } = {}) {
     const sorted = [...filtered].sort((a, b) => (b.trophies ?? 0) - (a.trophies ?? 0));
     const { seasonId, dayInSeason, seasonLength } = seasonInfo(data.snapshotDate);
 
-    const SEP = FS + FS;
-    const headerLine = toMono(
-        padFS('GAIN', COL_GAIN) +
-        padFS('LOSS', COL_LOSS) +
-        padFS('FINAL', COL_FINAL) + SEP +
-        'NAME',
-    );
+    const headerLine =
+        'GAIN'.padEnd(COL_GAIN) +
+        'LOSS'.padEnd(COL_LOSS) +
+        'FINAL'.padEnd(COL_FINAL) +
+        'NAME';
 
     const rows = sorted.map((p, i) => {
         const gain = fmtGain(p);
@@ -115,25 +101,32 @@ export function buildEodEmbeds(data, filtered, { title = 'TWA Legend League', cl
         const rawName = stripWideChars(p.name || p.tag) || p.tag;
         const name = rawName.length > NAME_MAX ? rawName.slice(0, NAME_MAX - 1) + '…' : rawName;
         const star = i === 0 ? ' ★' : '';
-        const line =
-            padFS(gain, COL_GAIN) +
-            padFS(loss, COL_LOSS) +
-            padFS(final, COL_FINAL) + SEP +
-            name + star;
-        return toMono(line);
+        return (
+            padCell(gain, COL_GAIN) +
+            padCell(loss, COL_LOSS) +
+            final.padEnd(COL_FINAL) +
+            name + star
+        ).trimEnd();
     });
 
+    // One unified triple-backtick block per embed description.
+    const wrapBody = (bodyRows) =>
+        '```\n' + headerLine + '\n' + bodyRows.join('\n') + '\n```';
+
     const descriptions = [];
-    let buf = headerLine;
+    let currentRows = [];
+    let currentLen = wrapBody([]).length;
     for (const row of rows) {
-        if (buf.length + row.length + 1 > 3900) {
-            descriptions.push(buf);
-            buf = headerLine;
+        if (currentLen + row.length + 1 > 3900 && currentRows.length) {
+            descriptions.push(wrapBody(currentRows));
+            currentRows = [];
+            currentLen = wrapBody([]).length;
         }
-        buf += '\n' + row;
+        currentRows.push(row);
+        currentLen += row.length + 1;
     }
-    if (buf) descriptions.push(buf);
-    if (!descriptions.length) descriptions.push(`${headerLine}\n_(geen spelers in de snapshot)_`);
+    if (currentRows.length) descriptions.push(wrapBody(currentRows));
+    if (!descriptions.length) descriptions.push(wrapBody(['(geen spelers in de snapshot)']));
 
     const fullTitle = `🏆 ${title}${clanTag ? ` (${clanTag})` : ''} · End of Day ${dayInSeason}/${seasonLength}`;
 
