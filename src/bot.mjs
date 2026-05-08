@@ -5,6 +5,7 @@ import { Client, GatewayIntentBits, Partials, Events, REST, Routes, EmbedBuilder
 import { generateFromMessages } from 'discord-html-transcripts';
 import { registerCommandsMap } from './commands/index.mjs';
 import { handleCloseTicket, handleDeleteTicket } from './tickets.mjs';
+import { startDailyEodScheduler } from './lib/daily-eod-post.mjs';
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
 dotenv.config({ path: path.resolve(__dirname, '../.env') });
@@ -154,6 +155,7 @@ client.once(Events.ClientReady, async (c) => {
     console.log('HEALTHCHECK: OK');
     process.exit(0);
   }
+  startDailyEodScheduler(c);
 });
 
 client.on(Events.InteractionCreate, async (interaction) => {
