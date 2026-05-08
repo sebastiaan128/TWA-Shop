@@ -1,4 +1,8 @@
-import { buildEodEmbeds, fetchEodSnapshot, filterActiveSubs } from './eod-leaderboard.mjs';
+import { AttachmentBuilder, EmbedBuilder } from 'discord.js';
+import { fetchEodSnapshot, filterActiveSubs, seasonInfo } from './eod-leaderboard.mjs';
+import { renderEodImage } from './eod-image.mjs';
+
+const TWA_COLOR = 0x06b6d4;
 
 // Post hour/minute in UTC. 06:30 UTC = 07:30 CET / 08:30 CEST.
 const POST_HOUR_UTC = 6;
@@ -70,15 +74,24 @@ export async function postDailyLeaderboard(client, { channelOverride = null } = 
         console.warn('[eod:daily] could not prune old posts:', err.message);
     }
 
-    const embeds = buildEodEmbeds(data, filtered);
     try {
-        await channel.send({ embeds: [embeds[0]] });
-        for (let i = 1; i < embeds.length; i++) {
-            await channel.send({ embeds: [embeds[i]] });
-        }
+        const { seasonId, dayInSeason, seasonLength } = seasonInfo(data.snapshotDate);
+        const png = renderEodImage({
+            players: filtered,
+            title: 'TWA Legend League',
+            clanTag: '',
+            dayInSeason,
+            seasonLength,
+            seasonId,
+        });
+        const attachment = new AttachmentBuilder(png, { name: 'eod.png' });
+        const embed = new EmbedBuilder()
+            .setColor(TWA_COLOR)
+            .setImage('attachment://eod.png');
+        await channel.send({ embeds: [embed], files: [attachment] });
         return { ok: true, snapshotDate: data.snapshotDate, count: filtered.length, channelId, deleted };
     } catch (err) {
-        return { ok: false, reason: `failed to send embed: ${err.message}` };
+        return { ok: false, reason: `failed to render/send: ${err.message}` };
     }
 }
 

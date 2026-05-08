@@ -156,6 +156,7 @@ client.once(Events.ClientReady, async (c) => {
     process.exit(0);
   }
   startDailyEodScheduler(c);
+  console.log('Ready');
 });
 
 client.on(Events.InteractionCreate, async (interaction) => {

@@ -4,6 +4,15 @@ const TWA_COLOR = 0x06b6d4;
 const TWA_AUTHOR_ICON = 'https://twabases.com/assets/Logo.png';
 const LRM = '‎';
 
+const ESC = '\x1b';
+const C = {
+    reset: `${ESC}[0m`,
+    muted: `${ESC}[2;37m`,
+    white: `${ESC}[1;37m`,
+    gain: `${ESC}[1;32m`,
+    loss: `${ESC}[1;31m`,
+};
+
 const SUP = { '0': '⁰', '1': '¹', '2': '²', '3': '³', '4': '⁴', '5': '⁵', '6': '⁶', '7': '⁷', '8': '⁸', '9': '⁹' };
 const toSuper = (n) => (n == null ? '' : String(n).split('').map((c) => SUP[c] ?? c).join(''));
 
@@ -12,7 +21,9 @@ function stripWideChars(s) {
 }
 
 function visualLength(s) {
-    return [...s].length;
+    // eslint-disable-next-line no-control-regex
+    const stripped = s.replace(/\x1b\[[0-9;]*m/g, '');
+    return [...stripped].length;
 }
 
 function padEndV(s, n) {
@@ -32,7 +43,7 @@ function lastMondayOfMonth(year, month) {
     return last;
 }
 
-function seasonInfo(snapshotDateStr) {
+export function seasonInfo(snapshotDateStr) {
     if (!snapshotDateStr) return { seasonId: '—', dayInSeason: 0, seasonLength: 0 };
     const [Y, M, D] = snapshotDateStr.split('-').map(Number);
     const today = new Date(Date.UTC(Y, M - 1, D));
@@ -80,16 +91,16 @@ function estimateLostDefenses(p) {
 }
 
 const COL = { gain: 5, loss: 5, final: 5 };
-const DASH = '—';
+const DASH = `${C.muted}—${C.reset}`;
 
 function fmtGain(amount, count) {
     if (!(amount > 0)) return DASH;
-    return `+${amount}${toSuper(count ?? 0)}`;
+    return `${C.gain}+${amount}${toSuper(count ?? 0)}${C.reset}`;
 }
 
 function fmtLoss(amount, count) {
     if (!(amount > 0)) return DASH;
-    return `-${amount}${toSuper(count ?? 0)}`;
+    return `${C.loss}-${amount}${toSuper(count ?? 0)}${C.reset}`;
 }
 
 export function buildEodLines(filtered) {
@@ -118,8 +129,8 @@ export function buildEodLines(filtered) {
             }
         }
 
-        const final = String(p.trophies ?? 0);
-        const name = LRM + (stripWideChars(p.name || p.tag) || p.tag);
+        const final = `${C.white}${p.trophies ?? 0}${C.reset}`;
+        const name = `${C.white}${LRM}${stripWideChars(p.name || p.tag) || p.tag}${C.reset}`;
 
         return (
             padStartV(gain, COL.gain) + '  ' +
@@ -131,11 +142,13 @@ export function buildEodLines(filtered) {
 }
 
 const HEADER =
-    '```\n' +
+    '```ansi\n' +
+    `${C.muted}` +
     padStartV('GAIN', COL.gain) + '  ' +
     padStartV('LOSS', COL.loss) + '  ' +
     padStartV('FINAL', COL.final) + '  ' +
-    'NAME\n';
+    'NAME' +
+    `${C.reset}\n`;
 
 function chunkLines(lines, max = 3900) {
     const chunks = [];
