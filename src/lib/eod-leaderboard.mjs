@@ -88,11 +88,28 @@ export function buildEodEmbeds(data, filtered, { title = 'TWA Legend League', cl
     const sorted = [...filtered].sort((a, b) => (b.trophies ?? 0) - (a.trophies ?? 0));
     const { seasonId, dayInSeason, seasonLength } = seasonInfo(data.snapshotDate);
 
-    const headerLine =
-        'GAIN'.padEnd(COL_GAIN) +
-        'LOSS'.padEnd(COL_LOSS) +
-        'FINAL'.padEnd(COL_FINAL) +
-        'NAME';
+    // Convert ASCII letters/digits to Unicode Mathematical Monospace so the
+    // text renders fixed-width in any Discord font without needing a code
+    // block (which would add a dark background).
+    const toMono = (s) => [...s].map((c) => {
+        const code = c.codePointAt(0);
+        if (code >= 0x41 && code <= 0x5A) return String.fromCodePoint(0x1D670 + code - 0x41); // A-Z
+        if (code >= 0x61 && code <= 0x7A) return String.fromCodePoint(0x1D68A + code - 0x61); // a-z
+        if (code >= 0x30 && code <= 0x39) return String.fromCodePoint(0x1D7F6 + code - 0x30); // 0-9
+        return c;
+    }).join('');
+
+    // Use FIGURE SPACE (U+2007) for column padding — same advance as a digit
+    // in most Discord fonts, so columns line up without code formatting.
+    const FS = ' ';
+    const padFS = (s, n) => s + FS.repeat(Math.max(0, n - [...s].length));
+
+    const headerLine = toMono(
+        padFS('GAIN', COL_GAIN) +
+        padFS('LOSS', COL_LOSS) +
+        padFS('FINAL', COL_FINAL) +
+        'NAME',
+    );
 
     const rows = sorted.map((p, i) => {
         const gain = fmtGain(p);
@@ -101,32 +118,25 @@ export function buildEodEmbeds(data, filtered, { title = 'TWA Legend League', cl
         const rawName = stripWideChars(p.name || p.tag) || p.tag;
         const name = rawName.length > NAME_MAX ? rawName.slice(0, NAME_MAX - 1) + '…' : rawName;
         const star = i === 0 ? ' ★' : '';
-        return (
-            padCell(gain, COL_GAIN) +
-            padCell(loss, COL_LOSS) +
-            final.padEnd(COL_FINAL) +
-            name + star
-        ).trimEnd();
+        const line =
+            padFS(gain, COL_GAIN) +
+            padFS(loss, COL_LOSS) +
+            padFS(final, COL_FINAL) +
+            name + star;
+        return toMono(line);
     });
 
-    // One unified triple-backtick block per embed description.
-    const wrapBody = (bodyRows) =>
-        '```\n' + headerLine + '\n' + bodyRows.join('\n') + '\n```';
-
     const descriptions = [];
-    let currentRows = [];
-    let currentLen = wrapBody([]).length;
+    let buf = headerLine;
     for (const row of rows) {
-        if (currentLen + row.length + 1 > 3900 && currentRows.length) {
-            descriptions.push(wrapBody(currentRows));
-            currentRows = [];
-            currentLen = wrapBody([]).length;
+        if (buf.length + row.length + 1 > 3900) {
+            descriptions.push(buf);
+            buf = headerLine;
         }
-        currentRows.push(row);
-        currentLen += row.length + 1;
+        buf += '\n' + row;
     }
-    if (currentRows.length) descriptions.push(wrapBody(currentRows));
-    if (!descriptions.length) descriptions.push(wrapBody(['(geen spelers in de snapshot)']));
+    if (buf) descriptions.push(buf);
+    if (!descriptions.length) descriptions.push(`${headerLine}\n_(geen spelers in de snapshot)_`);
 
     const fullTitle = `🏆 ${title}${clanTag ? ` (${clanTag})` : ''} · End of Day ${dayInSeason}/${seasonLength}`;
 
