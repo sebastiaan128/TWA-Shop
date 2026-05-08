@@ -81,17 +81,31 @@ function fmtLoss(amount, count) {
 
 const COL = { gain: 5, loss: 5, final: 5 };
 
+// Approximate trophies a Legend League win/loss is worth — used to estimate
+// lost-defense counts when we don't have per-attack poll data yet.
+const AVG_PER_ACTION = 32;
+
+function estimateLostDefenses(p) {
+    // Real count from the poll function, when available.
+    if (typeof p.lostDefenseCount === 'number') return p.lostDefenseCount;
+    // Estimate from net delta: lostTrophies = attackGain − netDelta
+    const atks = p.dailyAttacks ?? 0;
+    const delta = p.todayDelta ?? 0;
+    const estLoss = Math.max(0, atks * AVG_PER_ACTION - delta);
+    return Math.round(estLoss / AVG_PER_ACTION);
+}
+
 export function buildEodLines(filtered) {
     return filtered.map((p) => {
         const atks = p.dailyAttacks ?? 0;
-        const defs = p.dailyDefenses ?? 0;
+        const lostDefs = estimateLostDefenses(p);
         const hasReal = typeof p.dailyGain === 'number' || typeof p.dailyLoss === 'number';
 
         let gain;
         let loss;
         if (hasReal) {
             gain = fmtGain(p.dailyGain ?? 0, atks);
-            loss = fmtLoss(p.dailyLoss ?? 0, defs);
+            loss = fmtLoss(p.dailyLoss ?? 0, lostDefs);
         } else {
             const delta = p.todayDelta;
             if (delta == null || delta === 0) {
@@ -102,7 +116,7 @@ export function buildEodLines(filtered) {
                 loss = '—';
             } else {
                 gain = '—';
-                loss = fmtLoss(-delta, defs);
+                loss = fmtLoss(-delta, lostDefs);
             }
         }
 
