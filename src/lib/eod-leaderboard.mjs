@@ -1,18 +1,8 @@
 import { EmbedBuilder } from 'discord.js';
 
-const TWA_COLOR = 0x1e2130;
+const TWA_COLOR = 0x06b6d4;
 const TWA_AUTHOR_ICON = 'https://twabases.com/assets/Logo.png';
 const LRM = '‎';
-
-const ESC = '\x1b';
-const C = {
-    reset: `${ESC}[0m`,
-    muted: `${ESC}[2;37m`,
-    white: `${ESC}[1;37m`,
-    gain: `${ESC}[1;33m`,    // yellow ≈ yellow-green in Discord dark
-    loss: `${ESC}[1;31m`,    // red-orange
-    title: `${ESC}[1;34m`,
-};
 
 const SUP = { '0': '⁰', '1': '¹', '2': '²', '3': '³', '4': '⁴', '5': '⁵', '6': '⁶', '7': '⁷', '8': '⁸', '9': '⁹' };
 const toSuper = (n) => (n == null ? '' : String(n).split('').map((c) => SUP[c] ?? c).join(''));
@@ -22,10 +12,7 @@ function stripWideChars(s) {
 }
 
 function visualLength(s) {
-    // Strip ANSI escape sequences for width calculation.
-    // eslint-disable-next-line no-control-regex
-    const stripped = s.replace(/\x1b\[[0-9;]*m/g, '');
-    return [...stripped].length;
+    return [...s].length;
 }
 
 function padEndV(s, n) {
@@ -93,16 +80,16 @@ function estimateLostDefenses(p) {
 }
 
 const COL = { gain: 5, loss: 5, final: 5 };
-const DASH = `${C.muted}—${C.reset}`;
+const DASH = '—';
 
 function fmtGain(amount, count) {
     if (!(amount > 0)) return DASH;
-    return `${C.gain}+${amount}${toSuper(count ?? 0)}${C.reset}`;
+    return `+${amount}${toSuper(count ?? 0)}`;
 }
 
 function fmtLoss(amount, count) {
     if (!(amount > 0)) return DASH;
-    return `${C.loss}-${amount}${toSuper(count ?? 0)}${C.reset}`;
+    return `-${amount}${toSuper(count ?? 0)}`;
 }
 
 export function buildEodLines(filtered) {
@@ -131,8 +118,8 @@ export function buildEodLines(filtered) {
             }
         }
 
-        const final = `${C.white}${p.trophies ?? 0}${C.reset}`;
-        const name = `${C.white}${LRM}${stripWideChars(p.name || p.tag) || p.tag}${C.reset}`;
+        const final = String(p.trophies ?? 0);
+        const name = LRM + (stripWideChars(p.name || p.tag) || p.tag);
 
         return (
             padStartV(gain, COL.gain) + '  ' +
@@ -144,13 +131,11 @@ export function buildEodLines(filtered) {
 }
 
 const HEADER =
-    '```ansi\n' +
-    `${C.muted}` +
+    '```\n' +
     padStartV('GAIN', COL.gain) + '  ' +
     padStartV('LOSS', COL.loss) + '  ' +
     padStartV('FINAL', COL.final) + '  ' +
-    'NAME' +
-    `${C.reset}\n`;
+    'NAME\n';
 
 function chunkLines(lines, max = 3900) {
     const chunks = [];
@@ -172,12 +157,11 @@ export function buildEodEmbeds(data, filtered, { title } = {}) {
     const { seasonId, dayInSeason, seasonLength } = seasonInfo(dateStr);
 
     const chunks = chunkLines(lines).map((c) => c + '```');
-    const subtitle = `**Legend League Attacks**\n`;
 
     const head = new EmbedBuilder()
         .setAuthor({ name: 'TWA', iconURL: TWA_AUTHOR_ICON })
-        .setTitle(title || 'TWA Legend League')
-        .setDescription(subtitle + (chunks[0] || '_Geen spelers in de snapshot._'))
+        .setTitle(title || 'Legend League Attacks')
+        .setDescription(chunks[0] || '_Geen spelers in de snapshot._')
         .setColor(TWA_COLOR)
         .setFooter({ text: `End of Day ${dayInSeason}/${seasonLength} (${seasonId})` });
 
