@@ -11,7 +11,7 @@ function msUntilNextPost(now = new Date()) {
     return next - now;
 }
 
-export async function postDailyLeaderboard(client, { channelOverride = null } = {}) {
+export async function postDailyLeaderboard(client, { channelOverride = null, refresh = false } = {}) {
     const channelId = channelOverride || process.env.EOD_DAILY_CHANNEL_ID;
     const requiredRoleId = process.env.EOD_REQUIRED_ROLE_ID;
     if (!channelId) {
@@ -33,7 +33,7 @@ export async function postDailyLeaderboard(client, { channelOverride = null } = 
 
     let data;
     try {
-        data = await fetchEodSnapshot();
+        data = await fetchEodSnapshot({ refresh });
     } catch (err) {
         return { ok: false, reason: `failed to fetch snapshot: ${err.message}` };
     }

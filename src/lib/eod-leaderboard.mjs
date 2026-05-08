@@ -159,11 +159,12 @@ function buildYesterdayRankMap(players) {
 }
 export { buildYesterdayRankMap };
 
-export async function fetchEodSnapshot() {
+export async function fetchEodSnapshot({ refresh = false } = {}) {
     const url = process.env.EOD_API_URL;
     const key = process.env.EOD_API_KEY;
     if (!url || !key) throw new Error('EOD_API_URL or EOD_API_KEY missing');
-    const resp = await fetch(url, { headers: { 'x-api-key': key } });
+    const u = refresh ? `${url}${url.includes('?') ? '&' : '?'}refresh=1` : url;
+    const resp = await fetch(u, { headers: { 'x-api-key': key } });
     if (!resp.ok) throw new Error(`HTTP ${resp.status}`);
     return resp.json();
 }

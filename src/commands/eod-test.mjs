@@ -24,7 +24,7 @@ async function execute(interaction) {
     await interaction.deferReply({ ephemeral: true });
 
     const channelOverride = interaction.options.getChannel('channel')?.id || null;
-    const result = await postDailyLeaderboard(interaction.client, { channelOverride });
+    const result = await postDailyLeaderboard(interaction.client, { channelOverride, refresh: true });
 
     if (result.ok) {
         const pruned = result.deleted ? ` · ${result.deleted} oude verwijderd` : '';
