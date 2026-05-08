@@ -73,17 +73,15 @@ function fmtLoss(p) {
     return typeof d === 'number' && d < 0 ? `${d}${sup(lostDefs)}` : '—';
 }
 
-const COL_GAIN = 7;
-const COL_LOSS = 7;
-const COL_FINAL = 6;
+const COL_GAIN = 6;
+const COL_LOSS = 6;
+const COL_FINAL = 5;
 const NAME_MAX = 13;
 
-// Pad a value to a column width. Superscript chars count as length-1 in JS
-// but render slightly wider, so add 1 extra trailing space if value has any.
+// Discord monospace renders superscript digits at the same advance width as
+// normal digits, so plain padEnd is enough — no compensation needed.
 function padCell(value, width) {
-    const hasSup = /[⁰¹²³⁴⁵⁶⁷⁸⁹]/.test(value);
-    const v = hasSup ? value + ' ' : value;
-    return v.padEnd(width);
+    return value.padEnd(width);
 }
 
 export function buildEodMessages(data, filtered, { title = 'TWA Legend League', clanTag = '' } = {}) {
@@ -108,7 +106,7 @@ export function buildEodMessages(data, filtered, { title = 'TWA Legend League', 
             padCell(loss, COL_LOSS) +
             final.padEnd(COL_FINAL) +
             name + star
-        );
+        ).trimEnd();
     });
 
     const titleLine = `🏆 ${title}${clanTag ? ` (${clanTag})` : ''}`;
