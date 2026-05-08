@@ -88,30 +88,45 @@ export function buildEodEmbeds(data, filtered, { title = 'TWA Legend League', cl
     const sorted = [...filtered].sort((a, b) => (b.trophies ?? 0) - (a.trophies ?? 0));
     const { seasonId, dayInSeason, seasonLength } = seasonInfo(data.snapshotDate);
 
-    // Plain markdown rows — no monospace block so there's no dark background.
-    // Trade-off: columns won't align in Discord's proportional font.
-    const prettyRows = sorted.map((p, i) => {
+    const headerLine =
+        'GAIN'.padEnd(COL_GAIN) +
+        'LOSS'.padEnd(COL_LOSS) +
+        'FINAL'.padEnd(COL_FINAL) +
+        'NAME';
+
+    const rows = sorted.map((p, i) => {
         const gain = fmtGain(p);
         const loss = fmtLoss(p);
         const final = String(p.trophies ?? 0);
         const rawName = stripWideChars(p.name || p.tag) || p.tag;
         const name = rawName.length > NAME_MAX ? rawName.slice(0, NAME_MAX - 1) + '…' : rawName;
         const star = i === 0 ? ' ★' : '';
-        const rank = `**${i + 1}.**`;
-        return `${rank} ${name}${star} — **${final}** · ${gain} / ${loss}`;
+        return (
+            padCell(gain, COL_GAIN) +
+            padCell(loss, COL_LOSS) +
+            final.padEnd(COL_FINAL) +
+            name + star
+        ).trimEnd();
     });
 
+    // One unified triple-backtick block per embed description.
+    const wrapBody = (bodyRows) =>
+        '```\n' + headerLine + '\n' + bodyRows.join('\n') + '\n```';
+
     const descriptions = [];
-    let buf = '';
-    for (const row of prettyRows) {
-        if (buf.length + row.length + 1 > 3900) {
-            descriptions.push(buf);
-            buf = '';
+    let currentRows = [];
+    let currentLen = wrapBody([]).length;
+    for (const row of rows) {
+        if (currentLen + row.length + 1 > 3900 && currentRows.length) {
+            descriptions.push(wrapBody(currentRows));
+            currentRows = [];
+            currentLen = wrapBody([]).length;
         }
-        buf += (buf ? '\n' : '') + row;
+        currentRows.push(row);
+        currentLen += row.length + 1;
     }
-    if (buf) descriptions.push(buf);
-    if (!descriptions.length) descriptions.push('_(geen spelers in de snapshot)_');
+    if (currentRows.length) descriptions.push(wrapBody(currentRows));
+    if (!descriptions.length) descriptions.push(wrapBody(['(geen spelers in de snapshot)']));
 
     const fullTitle = `🏆 ${title}${clanTag ? ` (${clanTag})` : ''} · End of Day ${dayInSeason}/${seasonLength}`;
 
