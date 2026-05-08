@@ -84,7 +84,7 @@ function padCell(value, width) {
     return value.padEnd(width);
 }
 
-export function buildEodMessages(data, filtered, { title = 'TWA Legend League', clanTag = '' } = {}) {
+export function buildEodEmbeds(data, filtered, { title = 'TWA Legend League', clanTag = '' } = {}) {
     const sorted = [...filtered].sort((a, b) => (b.trophies ?? 0) - (a.trophies ?? 0));
     const { seasonId, dayInSeason, seasonLength } = seasonInfo(data.snapshotDate);
 
@@ -109,37 +109,34 @@ export function buildEodMessages(data, filtered, { title = 'TWA Legend League', 
         ).trimEnd();
     });
 
-    const titleLine = `🏆 ${title}${clanTag ? ` (${clanTag})` : ''}`;
-    const subtitleLine = `Legend League Attacks · End of Day ${dayInSeason}/${seasonLength} · ${seasonId}`;
-    const footerLine = `End of Day ${dayInSeason}/${seasonLength} (${seasonId})`;
+    const headerInline = `\`${headerLine}\``;
+    const rowInlines = rows.map((r) => `\`${r}\``);
 
-    // Wrap the table in a triple-backtick code block. On desktop this fills
-    // the full message column width by Discord's design.
-    const messages = [];
-    const wrapBody = (bodyRows) =>
-        '```\n' + headerLine + '\n' + bodyRows.join('\n') + '\n```';
-
-    let currentRows = [];
-    let currentLen = wrapBody([]).length;
-    for (const row of rows) {
-        const projected = currentLen + row.length + 1;
-        if (projected > 1800 && currentRows.length) {
-            messages.push(wrapBody(currentRows));
-            currentRows = [];
-            currentLen = wrapBody([]).length;
+    // Pack rows into one or more embed descriptions (4096 char limit each).
+    const descriptions = [];
+    let buf = headerInline;
+    for (const row of rowInlines) {
+        const projected = buf.length + row.length + 1;
+        if (projected > 3900) {
+            descriptions.push(buf);
+            buf = headerInline;
         }
-        currentRows.push(row);
-        currentLen += row.length + 1;
+        buf += '\n' + row;
     }
-    if (currentRows.length) messages.push(wrapBody(currentRows));
+    if (buf) descriptions.push(buf);
+    if (!descriptions.length) descriptions.push(`${headerInline}\n_(geen spelers in de snapshot)_`);
 
-    if (!messages.length) messages.push(wrapBody(['(geen spelers in de snapshot)']));
+    const fullTitle = `🏆 ${title}${clanTag ? ` (${clanTag})` : ''}`;
 
-    // Prepend title/subtitle to first, append footer to last.
-    messages[0] = `${titleLine}\n${subtitleLine}\n\n${messages[0]}`;
-    messages[messages.length - 1] = `${messages[messages.length - 1]}\n${footerLine}`;
-
-    return messages;
+    return descriptions.map((desc, i) => ({
+        title: i === 0 ? fullTitle : null,
+        description: desc,
+        seasonId,
+        dayInSeason,
+        seasonLength,
+        isFirst: i === 0,
+        isLast: i === descriptions.length - 1,
+    }));
 }
 
 function buildYesterdayRankMap(players) {

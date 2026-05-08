@@ -1,4 +1,7 @@
-import { buildEodMessages, fetchEodSnapshot, filterActiveSubs } from './eod-leaderboard.mjs';
+import { EmbedBuilder } from 'discord.js';
+import { buildEodEmbeds, fetchEodSnapshot, filterActiveSubs } from './eod-leaderboard.mjs';
+
+const TWA_COLOR = 0x06b6d4;
 
 // Post hour/minute in UTC. 06:30 UTC = 07:30 CET / 08:30 CEST.
 const POST_HOUR_UTC = 6;
@@ -57,7 +60,7 @@ export async function postDailyLeaderboard(client, { channelOverride = null, ref
         const recent = await channel.messages.fetch({ limit: 50 });
         const mine = recent.filter((m) =>
             m.author?.id === client.user.id
-            && /Legend League Attacks|End of Day/.test(m.content || '')
+            && m.embeds?.some((e) => /Legend League/i.test(e.title || ''))
         );
         for (const msg of mine.values()) {
             try {
@@ -70,9 +73,13 @@ export async function postDailyLeaderboard(client, { channelOverride = null, ref
     }
 
     try {
-        const messages = buildEodMessages(data, filtered);
-        for (const content of messages) {
-            await channel.send({ content });
+        const parts = buildEodEmbeds(data, filtered);
+        for (const part of parts) {
+            const embed = new EmbedBuilder()
+                .setColor(TWA_COLOR)
+                .setDescription(part.description);
+            if (part.title) embed.setTitle(part.title);
+            await channel.send({ embeds: [embed] });
         }
         return { ok: true, snapshotDate: data.snapshotDate, count: filtered.length, channelId, deleted };
     } catch (err) {

@@ -1,5 +1,7 @@
 import { SlashCommandBuilder, EmbedBuilder } from 'discord.js';
-import { buildEodMessages, fetchEodSnapshot, filterActiveSubs } from '../lib/eod-leaderboard.mjs';
+import { buildEodEmbeds, fetchEodSnapshot, filterActiveSubs } from '../lib/eod-leaderboard.mjs';
+
+const TWA_COLOR = 0x06b6d4;
 
 const TAG_RE = /^#[0-9A-Z]{3,12}$/;
 
@@ -40,10 +42,15 @@ async function executeLeaderboard(interaction) {
         return interaction.editReply('No active subs with a linked CoC tag in the current snapshot.');
     }
 
-    const messages = buildEodMessages(data, filtered);
-    await interaction.editReply({ content: messages[0] });
-    for (let i = 1; i < messages.length; i++) {
-        await interaction.followUp({ content: messages[i] });
+    const parts = buildEodEmbeds(data, filtered);
+    const buildEmbed = (part) => {
+        const e = new EmbedBuilder().setColor(TWA_COLOR).setDescription(part.description);
+        if (part.title) e.setTitle(part.title);
+        return e;
+    };
+    await interaction.editReply({ embeds: [buildEmbed(parts[0])] });
+    for (let i = 1; i < parts.length; i++) {
+        await interaction.followUp({ embeds: [buildEmbed(parts[i])] });
     }
 }
 
