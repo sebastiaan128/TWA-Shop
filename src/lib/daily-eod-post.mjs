@@ -51,13 +51,32 @@ export async function postDailyLeaderboard(client, { channelOverride = null } = 
         return { ok: false, reason: 'no active subs in snapshot' };
     }
 
+    // Delete previous EOD posts from this bot so only today's leaderboard
+    // remains in the channel.
+    let deleted = 0;
+    try {
+        const recent = await channel.messages.fetch({ limit: 50 });
+        const mine = recent.filter((m) =>
+            m.author?.id === client.user.id
+            && m.embeds?.some((e) => (e.title || e.author?.name || '').match(/End of Day|Legend League/i))
+        );
+        for (const msg of mine.values()) {
+            try {
+                await msg.delete();
+                deleted += 1;
+            } catch { /* ignore */ }
+        }
+    } catch (err) {
+        console.warn('[eod:daily] could not prune old posts:', err.message);
+    }
+
     const embeds = buildEodEmbeds(data, filtered);
     try {
         await channel.send({ embeds: [embeds[0]] });
         for (let i = 1; i < embeds.length; i++) {
             await channel.send({ embeds: [embeds[i]] });
         }
-        return { ok: true, snapshotDate: data.snapshotDate, count: filtered.length, channelId };
+        return { ok: true, snapshotDate: data.snapshotDate, count: filtered.length, channelId, deleted };
     } catch (err) {
         return { ok: false, reason: `failed to send embed: ${err.message}` };
     }

@@ -27,7 +27,8 @@ async function execute(interaction) {
     const result = await postDailyLeaderboard(interaction.client, { channelOverride });
 
     if (result.ok) {
-        return interaction.editReply(`✅ Post verstuurd in <#${result.channelId}> · snapshot ${result.snapshotDate} · ${result.count} subs`);
+        const pruned = result.deleted ? ` · ${result.deleted} oude verwijderd` : '';
+        return interaction.editReply(`✅ Post verstuurd in <#${result.channelId}> · snapshot ${result.snapshotDate} · ${result.count} subs${pruned}`);
     }
     return interaction.editReply(`❌ ${result.reason}`);
 }
