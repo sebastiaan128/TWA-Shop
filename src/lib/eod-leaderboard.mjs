@@ -88,45 +88,32 @@ export function buildEodEmbeds(data, filtered, { title = 'TWA Legend League', cl
     const sorted = [...filtered].sort((a, b) => (b.trophies ?? 0) - (a.trophies ?? 0));
     const { seasonId, dayInSeason, seasonLength } = seasonInfo(data.snapshotDate);
 
-    const headerLine =
-        'GAIN'.padEnd(COL_GAIN) +
-        'LOSS'.padEnd(COL_LOSS) +
-        'FINAL'.padEnd(COL_FINAL) +
-        'NAME';
-
-    const rows = sorted.map((p, i) => {
+    // Plain markdown rows — no monospace block so there's no dark background.
+    // Trade-off: columns won't align in Discord's proportional font.
+    const prettyRows = sorted.map((p, i) => {
         const gain = fmtGain(p);
         const loss = fmtLoss(p);
         const final = String(p.trophies ?? 0);
         const rawName = stripWideChars(p.name || p.tag) || p.tag;
         const name = rawName.length > NAME_MAX ? rawName.slice(0, NAME_MAX - 1) + '…' : rawName;
         const star = i === 0 ? ' ★' : '';
-        return (
-            padCell(gain, COL_GAIN) +
-            padCell(loss, COL_LOSS) +
-            final.padEnd(COL_FINAL) +
-            name + star
-        ).trimEnd();
+        const rank = `**${i + 1}.**`;
+        return `${rank} ${name}${star} — **${final}** · ${gain} / ${loss}`;
     });
 
-    const headerInline = `\`${headerLine}\``;
-    const rowInlines = rows.map((r) => `\`${r}\``);
-
-    // Pack rows into one or more embed descriptions (4096 char limit each).
     const descriptions = [];
-    let buf = headerInline;
-    for (const row of rowInlines) {
-        const projected = buf.length + row.length + 1;
-        if (projected > 3900) {
+    let buf = '';
+    for (const row of prettyRows) {
+        if (buf.length + row.length + 1 > 3900) {
             descriptions.push(buf);
-            buf = headerInline;
+            buf = '';
         }
-        buf += '\n' + row;
+        buf += (buf ? '\n' : '') + row;
     }
     if (buf) descriptions.push(buf);
-    if (!descriptions.length) descriptions.push(`${headerInline}\n_(geen spelers in de snapshot)_`);
+    if (!descriptions.length) descriptions.push('_(geen spelers in de snapshot)_');
 
-    const fullTitle = `🏆 ${title}${clanTag ? ` (${clanTag})` : ''}`;
+    const fullTitle = `🏆 ${title}${clanTag ? ` (${clanTag})` : ''} · End of Day ${dayInSeason}/${seasonLength}`;
 
     return descriptions.map((desc, i) => ({
         title: i === 0 ? fullTitle : null,
