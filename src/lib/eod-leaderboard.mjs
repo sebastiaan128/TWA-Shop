@@ -39,7 +39,9 @@ export function seasonInfo(snapshotDateStr) {
 const AVG_PER_ACTION = 32;
 
 function fmtGain(p) {
-    const atks = p.dailyAttacks ?? 0;
+    // Real attack count from the poller (trophy-up events); falls back to
+    // CoC's attackWins diff which under-counts 0-star attacks.
+    const atks = typeof p.attackCount === 'number' ? p.attackCount : (p.dailyAttacks ?? 0);
     if (typeof p.dailyGain === 'number') {
         return p.dailyGain > 0 ? `+${p.dailyGain}${sup(atks)}` : '—';
     }
