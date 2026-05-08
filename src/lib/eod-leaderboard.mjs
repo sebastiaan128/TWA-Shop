@@ -54,6 +54,12 @@ export function buildEodLines(filtered) {
     const cleanNames = filtered.map((p) => stripWideChars(p.name || p.tag).slice(0, 16) || p.tag);
     const nameWidth = Math.max(4, ...cleanNames.map((n) => n.length));
 
+    const dash = `${C.muted}—${C.reset}`;
+    const buildGain = (amount, count) =>
+        amount > 0 ? `${C.green}+${amount}${toSuper(count)}${C.reset}` : dash;
+    const buildLoss = (amount, count) =>
+        amount > 0 ? `${C.red}-${amount}${toSuper(count)}${C.reset}` : dash;
+
     return filtered.map((p, i) => {
         const atks = p.dailyAttacks ?? 0;
         const defs = p.dailyDefenses ?? 0;
@@ -62,29 +68,23 @@ export function buildEodLines(filtered) {
         let gainCell;
         let lossCell;
         if (hasReal) {
-            const gain = p.dailyGain ?? 0;
-            const loss = p.dailyLoss ?? 0;
-            gainCell = gain > 0 || atks > 0
-                ? `${C.green}+${gain}${toSuper(atks)}${C.reset}`
-                : '';
-            lossCell = loss > 0 || defs > 0
-                ? `${C.red}-${loss}${toSuper(defs)}${C.reset}`
-                : '';
+            gainCell = buildGain(p.dailyGain ?? 0, atks);
+            lossCell = buildLoss(p.dailyLoss ?? 0, defs);
         } else {
-            // Fallback: only net delta available
+            // Fallback: only net delta available — split it into one side.
             const delta = p.todayDelta;
             if (delta == null) {
-                gainCell = `${C.muted}—${C.reset}`;
-                lossCell = `${C.muted}—${C.reset}`;
+                gainCell = dash;
+                lossCell = dash;
             } else if (delta > 0) {
-                gainCell = `${C.green}+${delta}${toSuper(atks)}${C.reset}`;
-                lossCell = defs > 0 ? `${C.muted}${toSuper(defs)}${C.reset}` : '';
+                gainCell = buildGain(delta, atks);
+                lossCell = dash;
             } else if (delta < 0) {
-                gainCell = atks > 0 ? `${C.muted}${toSuper(atks)}${C.reset}` : '';
-                lossCell = `${C.red}${delta}${toSuper(defs)}${C.reset}`;
+                gainCell = dash;
+                lossCell = buildLoss(-delta, defs);
             } else {
-                gainCell = `${C.muted}0${toSuper(atks)}${C.reset}`;
-                lossCell = `${C.muted}${toSuper(defs)}${C.reset}`;
+                gainCell = dash;
+                lossCell = dash;
             }
         }
 
