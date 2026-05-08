@@ -73,9 +73,10 @@ function fmtLoss(p) {
     return typeof d === 'number' && d < 0 ? `${d}${sup(lostDefs)}` : '—';
 }
 
-const COL_GAIN = 9;
-const COL_LOSS = 9;
-const COL_FINAL = 7;
+const COL_GAIN = 7;
+const COL_LOSS = 7;
+const COL_FINAL = 6;
+const NAME_MAX = 13;
 
 // Pad a value to a column width. Superscript chars count as length-1 in JS
 // but render slightly wider, so add 1 extra trailing space if value has any.
@@ -99,7 +100,8 @@ export function buildEodMessages(data, filtered, { title = 'TWA Legend League', 
         const gain = fmtGain(p);
         const loss = fmtLoss(p);
         const final = String(p.trophies ?? 0);
-        const name = stripWideChars(p.name || p.tag) || p.tag;
+        const rawName = stripWideChars(p.name || p.tag) || p.tag;
+        const name = rawName.length > NAME_MAX ? rawName.slice(0, NAME_MAX - 1) + '…' : rawName;
         const star = i === 0 ? ' ★' : '';
         return (
             padCell(gain, COL_GAIN) +
