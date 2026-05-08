@@ -43,8 +43,6 @@ function fmtGain(p) {
     if (typeof p.attackCount === 'number') {
         atks = p.attackCount;
     } else if (typeof p.todayDelta === 'number' && p.todayDelta > 0) {
-        // Fallback: estimate count of attacks purely from the net gain,
-        // mirroring how LOSS count is estimated.
         atks = Math.max(1, Math.round(p.todayDelta / AVG_PER_ACTION));
     } else {
         atks = p.dailyAttacks ?? 0;
@@ -61,7 +59,6 @@ function fmtLoss(p) {
     if (typeof p.lostDefenseCount === 'number') {
         lostDefs = p.lostDefenseCount;
     } else if (typeof p.todayDelta === 'number' && p.todayDelta < 0) {
-        // Fallback: estimate count of lost defenses purely from the net loss.
         lostDefs = Math.max(1, Math.round(-p.todayDelta / AVG_PER_ACTION));
     } else {
         lostDefs = 0;
@@ -73,45 +70,14 @@ function fmtLoss(p) {
     return typeof d === 'number' && d < 0 ? `${d}${sup(lostDefs)}` : '—';
 }
 
-const COL_GAIN = 6;
-const COL_LOSS = 6;
-const COL_FINAL = 5;
-const NAME_MAX = 13;
-
-// Discord monospace renders superscript digits at the same advance width as
-// normal digits, so plain padEnd is enough — no compensation needed.
-function padCell(value, width) {
-    return value.padEnd(width);
-}
+const NAME_MAX = 20;
 
 export function buildEodEmbeds(data, filtered, { title = 'TWA Legend League', clanTag = '' } = {}) {
     const sorted = [...filtered].sort((a, b) => (b.trophies ?? 0) - (a.trophies ?? 0));
     const { seasonId, dayInSeason, seasonLength } = seasonInfo(data.snapshotDate);
 
-    // Convert ASCII letters/digits to Unicode Mathematical Monospace so the
-    // text renders fixed-width in any Discord font without needing a code
-    // block (which would add a dark background).
-    const toMono = (s) => [...s].map((c) => {
-        const code = c.codePointAt(0);
-        if (code >= 0x41 && code <= 0x5A) return String.fromCodePoint(0x1D670 + code - 0x41); // A-Z
-        if (code >= 0x61 && code <= 0x7A) return String.fromCodePoint(0x1D68A + code - 0x61); // a-z
-        if (code >= 0x30 && code <= 0x39) return String.fromCodePoint(0x1D7F6 + code - 0x30); // 0-9
-        return c;
-    }).join('');
-
-    // Use FIGURE SPACE (U+2007) for column padding — same advance as a digit
-    // in most Discord fonts, so columns line up without code formatting.
-    const FS = ' ';
-    const padFS = (s, n) => s + FS.repeat(Math.max(0, n - [...s].length));
-
-    const SEP = FS + FS;
-    const headerLine = toMono(
-        padFS('GAIN', COL_GAIN) +
-        padFS('LOSS', COL_LOSS) +
-        padFS('FINAL', COL_FINAL) + SEP +
-        'NAME',
-    );
-
+    // Plain markdown rows — normal Discord font, no background, no monospace.
+    // Columns won't perfectly align (proportional font) but it reads cleanly.
     const rows = sorted.map((p, i) => {
         const gain = fmtGain(p);
         const loss = fmtLoss(p);
@@ -119,25 +85,20 @@ export function buildEodEmbeds(data, filtered, { title = 'TWA Legend League', cl
         const rawName = stripWideChars(p.name || p.tag) || p.tag;
         const name = rawName.length > NAME_MAX ? rawName.slice(0, NAME_MAX - 1) + '…' : rawName;
         const star = i === 0 ? ' ★' : '';
-        const line =
-            padFS(gain, COL_GAIN) +
-            padFS(loss, COL_LOSS) +
-            padFS(final, COL_FINAL) + SEP +
-            name + star;
-        return toMono(line);
+        return `**${i + 1}.** ${name}${star} — **${final}** · ${gain} / ${loss}`;
     });
 
     const descriptions = [];
-    let buf = headerLine;
+    let buf = '';
     for (const row of rows) {
-        if (buf.length + row.length + 1 > 3900) {
+        if (buf.length + row.length + 1 > 3900 && buf) {
             descriptions.push(buf);
-            buf = headerLine;
+            buf = '';
         }
-        buf += '\n' + row;
+        buf += (buf ? '\n' : '') + row;
     }
     if (buf) descriptions.push(buf);
-    if (!descriptions.length) descriptions.push(`${headerLine}\n_(geen spelers in de snapshot)_`);
+    if (!descriptions.length) descriptions.push('_(geen spelers in de snapshot)_');
 
     const fullTitle = `🏆 ${title}${clanTag ? ` (${clanTag})` : ''} · End of Day ${dayInSeason}/${seasonLength}`;
 
