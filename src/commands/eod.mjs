@@ -1,8 +1,5 @@
-import { SlashCommandBuilder, EmbedBuilder, AttachmentBuilder } from 'discord.js';
-import { fetchEodSnapshot, filterActiveSubs, seasonInfo } from '../lib/eod-leaderboard.mjs';
-import { renderEodImage } from '../lib/eod-image.mjs';
-
-const TWA_COLOR = 0x06b6d4;
+import { SlashCommandBuilder, EmbedBuilder } from 'discord.js';
+import { buildEodMessages, fetchEodSnapshot, filterActiveSubs } from '../lib/eod-leaderboard.mjs';
 
 const TAG_RE = /^#[0-9A-Z]{3,12}$/;
 
@@ -43,20 +40,11 @@ async function executeLeaderboard(interaction) {
         return interaction.editReply('No active subs with a linked CoC tag in the current snapshot.');
     }
 
-    const { seasonId, dayInSeason, seasonLength } = seasonInfo(data.snapshotDate);
-    const png = renderEodImage({
-        players: filtered,
-        title: 'TWA Legend League',
-        clanTag: '',
-        dayInSeason,
-        seasonLength,
-        seasonId,
-    });
-    const attachment = new AttachmentBuilder(png, { name: 'eod.png' });
-    const embed = new EmbedBuilder()
-        .setColor(TWA_COLOR)
-        .setImage('attachment://eod.png');
-    await interaction.editReply({ embeds: [embed], files: [attachment] });
+    const messages = buildEodMessages(data, filtered);
+    await interaction.editReply({ content: messages[0] });
+    for (let i = 1; i < messages.length; i++) {
+        await interaction.followUp({ content: messages[i] });
+    }
 }
 
 async function executePlayer(interaction) {

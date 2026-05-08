@@ -1,8 +1,4 @@
-import { AttachmentBuilder, EmbedBuilder } from 'discord.js';
-import { fetchEodSnapshot, filterActiveSubs, seasonInfo } from './eod-leaderboard.mjs';
-import { renderEodImage } from './eod-image.mjs';
-
-const TWA_COLOR = 0x06b6d4;
+import { buildEodMessages, fetchEodSnapshot, filterActiveSubs } from './eod-leaderboard.mjs';
 
 // Post hour/minute in UTC. 06:30 UTC = 07:30 CET / 08:30 CEST.
 const POST_HOUR_UTC = 6;
@@ -55,14 +51,13 @@ export async function postDailyLeaderboard(client, { channelOverride = null } = 
         return { ok: false, reason: 'no active subs in snapshot' };
     }
 
-    // Delete previous EOD posts from this bot so only today's leaderboard
-    // remains in the channel.
+    // Delete previous EOD posts from this bot so only today's leaderboard remains.
     let deleted = 0;
     try {
         const recent = await channel.messages.fetch({ limit: 50 });
         const mine = recent.filter((m) =>
             m.author?.id === client.user.id
-            && m.embeds?.some((e) => (e.title || e.author?.name || '').match(/End of Day|Legend League/i))
+            && /Legend League Attacks|End of Day/.test(m.content || '')
         );
         for (const msg of mine.values()) {
             try {
@@ -75,23 +70,13 @@ export async function postDailyLeaderboard(client, { channelOverride = null } = 
     }
 
     try {
-        const { seasonId, dayInSeason, seasonLength } = seasonInfo(data.snapshotDate);
-        const png = renderEodImage({
-            players: filtered,
-            title: 'TWA Legend League',
-            clanTag: '',
-            dayInSeason,
-            seasonLength,
-            seasonId,
-        });
-        const attachment = new AttachmentBuilder(png, { name: 'eod.png' });
-        const embed = new EmbedBuilder()
-            .setColor(TWA_COLOR)
-            .setImage('attachment://eod.png');
-        await channel.send({ embeds: [embed], files: [attachment] });
+        const messages = buildEodMessages(data, filtered);
+        for (const content of messages) {
+            await channel.send({ content });
+        }
         return { ok: true, snapshotDate: data.snapshotDate, count: filtered.length, channelId, deleted };
     } catch (err) {
-        return { ok: false, reason: `failed to render/send: ${err.message}` };
+        return { ok: false, reason: `failed to send: ${err.message}` };
     }
 }
 

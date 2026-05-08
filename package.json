@@ -16,7 +16,6 @@
     "node": ">=18.17"
   },
   "dependencies": {
-    "@napi-rs/canvas": "^1.0.0",
     "debug": "^4.4.3",
     "discord-html-transcripts": "^3.2.0",
     "discord.js": "^14.16.0",

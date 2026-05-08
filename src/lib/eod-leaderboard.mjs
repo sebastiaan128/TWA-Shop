@@ -1,37 +1,10 @@
-import { EmbedBuilder } from 'discord.js';
-
-const TWA_COLOR = 0x06b6d4;
-const TWA_AUTHOR_ICON = 'https://twabases.com/assets/Logo.png';
-const LRM = '‎';
-
-const ESC = '\x1b';
-const C = {
-    reset: `${ESC}[0m`,
-    muted: `${ESC}[2;37m`,
-    white: `${ESC}[1;37m`,
-    gain: `${ESC}[1;32m`,
-    loss: `${ESC}[1;31m`,
-};
-
-const SUP = { '0': '⁰', '1': '¹', '2': '²', '3': '³', '4': '⁴', '5': '⁵', '6': '⁶', '7': '⁷', '8': '⁸', '9': '⁹' };
-const toSuper = (n) => (n == null ? '' : String(n).split('').map((c) => SUP[c] ?? c).join(''));
+const SUP = ['⁰', '¹', '²', '³', '⁴', '⁵', '⁶', '⁷', '⁸', '⁹'];
+function sup(n) {
+    return String(n ?? 0).split('').map((c) => SUP[+c] ?? c).join('');
+}
 
 function stripWideChars(s) {
     return s.replace(/[\p{Extended_Pictographic}‍️​]/gu, '').replace(/\s{2,}/g, ' ').trim();
-}
-
-function visualLength(s) {
-    // eslint-disable-next-line no-control-regex
-    const stripped = s.replace(/\x1b\[[0-9;]*m/g, '');
-    return [...stripped].length;
-}
-
-function padEndV(s, n) {
-    return s + ' '.repeat(Math.max(0, n - visualLength(s)));
-}
-
-function padStartV(s, n) {
-    return ' '.repeat(Math.max(0, n - visualLength(s))) + s;
 }
 
 // Last Monday of a given UTC year/month (month is 1–12).
@@ -63,6 +36,98 @@ export function seasonInfo(snapshotDateStr) {
     return { seasonId, dayInSeason: day, seasonLength: length };
 }
 
+const AVG_PER_ACTION = 32;
+
+function fmtGain(p) {
+    const atks = p.dailyAttacks ?? 0;
+    if (typeof p.dailyGain === 'number') {
+        return p.dailyGain > 0 ? `+${p.dailyGain}${sup(atks)}` : '—';
+    }
+    const d = p.todayDelta;
+    return typeof d === 'number' && d > 0 ? `+${d}${sup(atks)}` : '—';
+}
+
+function fmtLoss(p) {
+    const atks = p.dailyAttacks ?? 0;
+    const lostDefs = typeof p.lostDefenseCount === 'number'
+        ? p.lostDefenseCount
+        : Math.max(0, Math.round((atks * AVG_PER_ACTION - (p.todayDelta ?? 0)) / AVG_PER_ACTION));
+    if (typeof p.dailyLoss === 'number') {
+        return p.dailyLoss > 0 ? `-${p.dailyLoss}${sup(lostDefs)}` : '—';
+    }
+    const d = p.todayDelta;
+    return typeof d === 'number' && d < 0 ? `${d}${sup(lostDefs)}` : '—';
+}
+
+const COL_GAIN = 9;
+const COL_LOSS = 9;
+const COL_FINAL = 7;
+
+// Pad a value to a column width. Superscript chars count as length-1 in JS
+// but render slightly wider, so add 1 extra trailing space if value has any.
+function padCell(value, width) {
+    const hasSup = /[⁰¹²³⁴⁵⁶⁷⁸⁹]/.test(value);
+    const v = hasSup ? value + ' ' : value;
+    return v.padEnd(width);
+}
+
+export function buildEodMessages(data, filtered, { title = 'TWA Legend League', clanTag = '' } = {}) {
+    const sorted = [...filtered].sort((a, b) => (b.trophies ?? 0) - (a.trophies ?? 0));
+    const { seasonId, dayInSeason, seasonLength } = seasonInfo(data.snapshotDate);
+
+    const headerLine =
+        'GAIN'.padEnd(COL_GAIN) +
+        'LOSS'.padEnd(COL_LOSS) +
+        'FINAL'.padEnd(COL_FINAL) +
+        'NAME';
+
+    const rows = sorted.map((p, i) => {
+        const gain = fmtGain(p);
+        const loss = fmtLoss(p);
+        const final = String(p.trophies ?? 0);
+        const name = stripWideChars(p.name || p.tag) || p.tag;
+        const star = i === 0 ? ' ★' : '';
+        return (
+            padCell(gain, COL_GAIN) +
+            padCell(loss, COL_LOSS) +
+            final.padEnd(COL_FINAL) +
+            name + star
+        );
+    });
+
+    const titleLine = `🏆 ${title}${clanTag ? ` (${clanTag})` : ''}`;
+    const subtitleLine = `Legend League Attacks · End of Day ${dayInSeason}/${seasonLength} · ${seasonId}`;
+    const footerLine = `End of Day ${dayInSeason}/${seasonLength} (${seasonId})`;
+
+    // Discord hard message limit is 2000 chars. Split rows into chunks if needed.
+    const messages = [];
+    const wrapBody = (bodyRows) =>
+        '```\n' + headerLine + '\n' + bodyRows.join('\n') + '\n```';
+
+    let currentRows = [];
+    let currentLen = wrapBody([]).length;
+
+    for (const row of rows) {
+        const projected = currentLen + row.length + 1;
+        if (projected > 1800 && currentRows.length) {
+            messages.push(wrapBody(currentRows));
+            currentRows = [];
+            currentLen = wrapBody([]).length;
+        }
+        currentRows.push(row);
+        currentLen += row.length + 1;
+    }
+    if (currentRows.length) messages.push(wrapBody(currentRows));
+
+    if (!messages.length) messages.push(wrapBody(['(geen spelers in de snapshot)']));
+
+    // Prepend title/subtitle to first, append footer to last.
+    messages[0] = `${titleLine}\n${subtitleLine}\n\n${messages[0]}`;
+    messages[messages.length - 1] = `${messages[messages.length - 1]}\n\n${footerLine}`;
+
+    return messages;
+}
+
 function buildYesterdayRankMap(players) {
     const withYesterday = players
         .map((p) => {
@@ -79,111 +144,6 @@ function buildYesterdayRankMap(players) {
     return map;
 }
 export { buildYesterdayRankMap };
-
-const AVG_PER_ACTION = 32;
-
-function estimateLostDefenses(p) {
-    if (typeof p.lostDefenseCount === 'number') return p.lostDefenseCount;
-    const atks = p.dailyAttacks ?? 0;
-    const delta = p.todayDelta ?? 0;
-    const estLoss = Math.max(0, atks * AVG_PER_ACTION - delta);
-    return Math.round(estLoss / AVG_PER_ACTION);
-}
-
-const COL = { gain: 5, loss: 5, final: 5 };
-const DASH = `${C.muted}—${C.reset}`;
-
-function fmtGain(amount, count) {
-    if (!(amount > 0)) return DASH;
-    return `${C.gain}+${amount}${toSuper(count ?? 0)}${C.reset}`;
-}
-
-function fmtLoss(amount, count) {
-    if (!(amount > 0)) return DASH;
-    return `${C.loss}-${amount}${toSuper(count ?? 0)}${C.reset}`;
-}
-
-export function buildEodLines(filtered) {
-    const sorted = [...filtered].sort((a, b) => (b.trophies ?? 0) - (a.trophies ?? 0));
-    return sorted.map((p) => {
-        const atks = p.dailyAttacks ?? 0;
-        const lostDefs = estimateLostDefenses(p);
-        const hasReal = typeof p.dailyGain === 'number' || typeof p.dailyLoss === 'number';
-
-        let gain;
-        let loss;
-        if (hasReal) {
-            gain = fmtGain(p.dailyGain ?? 0, atks);
-            loss = fmtLoss(p.dailyLoss ?? 0, lostDefs);
-        } else {
-            const delta = p.todayDelta;
-            if (delta == null || delta === 0) {
-                gain = DASH;
-                loss = DASH;
-            } else if (delta > 0) {
-                gain = fmtGain(delta, atks);
-                loss = DASH;
-            } else {
-                gain = DASH;
-                loss = fmtLoss(-delta, lostDefs);
-            }
-        }
-
-        const final = `${C.white}${p.trophies ?? 0}${C.reset}`;
-        const name = `${C.white}${LRM}${stripWideChars(p.name || p.tag) || p.tag}${C.reset}`;
-
-        return (
-            padStartV(gain, COL.gain) + '  ' +
-            padStartV(loss, COL.loss) + '  ' +
-            padStartV(final, COL.final) + '  ' +
-            name
-        );
-    });
-}
-
-const HEADER =
-    '```ansi\n' +
-    `${C.muted}` +
-    padStartV('GAIN', COL.gain) + '  ' +
-    padStartV('LOSS', COL.loss) + '  ' +
-    padStartV('FINAL', COL.final) + '  ' +
-    'NAME' +
-    `${C.reset}\n`;
-
-function chunkLines(lines, max = 3900) {
-    const chunks = [];
-    let current = HEADER;
-    for (const line of lines) {
-        if (current.length + line.length + 1 > max) {
-            chunks.push(current);
-            current = HEADER;
-        }
-        current += line + '\n';
-    }
-    if (current.length > HEADER.length) chunks.push(current);
-    return chunks;
-}
-
-export function buildEodEmbeds(data, filtered, { title } = {}) {
-    const lines = buildEodLines(filtered);
-    const dateStr = data.snapshotDate || '—';
-    const { seasonId, dayInSeason, seasonLength } = seasonInfo(dateStr);
-
-    const chunks = chunkLines(lines).map((c) => c + '```');
-
-    const head = new EmbedBuilder()
-        .setAuthor({ name: 'TWA', iconURL: TWA_AUTHOR_ICON })
-        .setTitle(title || 'Legend League Attacks')
-        .setDescription(chunks[0] || '_Geen spelers in de snapshot._')
-        .setColor(TWA_COLOR)
-        .setFooter({ text: `End of Day ${dayInSeason}/${seasonLength} (${seasonId})` });
-
-    const embeds = [head];
-    for (let i = 1; i < chunks.length; i++) {
-        embeds.push(new EmbedBuilder().setDescription(chunks[i]).setColor(TWA_COLOR));
-    }
-    return embeds;
-}
 
 export async function fetchEodSnapshot() {
     const url = process.env.EOD_API_URL;
