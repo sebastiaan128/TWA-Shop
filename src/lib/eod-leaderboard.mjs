@@ -1,36 +1,50 @@
 import { EmbedBuilder } from 'discord.js';
 
-const TWA_COLOR = 0x1a1f2e;
+const TWA_COLOR = 0x1e2130;
 const TWA_AUTHOR_ICON = 'https://twabases.com/assets/Logo.png';
 const LRM = '‎';
+
+const ESC = '\x1b';
+const C = {
+    reset: `${ESC}[0m`,
+    muted: `${ESC}[2;37m`,
+    white: `${ESC}[1;37m`,
+    gain: `${ESC}[1;33m`,    // yellow ≈ yellow-green in Discord dark
+    loss: `${ESC}[1;31m`,    // red-orange
+    title: `${ESC}[1;34m`,
+};
 
 const SUP = { '0': '⁰', '1': '¹', '2': '²', '3': '³', '4': '⁴', '5': '⁵', '6': '⁶', '7': '⁷', '8': '⁸', '9': '⁹' };
 const toSuper = (n) => (n == null ? '' : String(n).split('').map((c) => SUP[c] ?? c).join(''));
 
 function stripWideChars(s) {
-    return s.replace(/[\p{Extended_Pictographic}‍️​]/gu, '').trim();
+    return s.replace(/[\p{Extended_Pictographic}‍️​]/gu, '').replace(/\s{2,}/g, ' ').trim();
 }
 
-// Treat superscript digits as width-1 like the rest of the code-block monospace.
 function visualLength(s) {
-    return [...s].length;
+    // Strip ANSI escape sequences for width calculation.
+    // eslint-disable-next-line no-control-regex
+    const stripped = s.replace(/\x1b\[[0-9;]*m/g, '');
+    return [...stripped].length;
 }
 
 function padEndV(s, n) {
     return s + ' '.repeat(Math.max(0, n - visualLength(s)));
 }
 
+function padStartV(s, n) {
+    return ' '.repeat(Math.max(0, n - visualLength(s))) + s;
+}
+
 // Last Monday of a given UTC year/month (month is 1–12).
 function lastMondayOfMonth(year, month) {
     const last = new Date(Date.UTC(year, month, 0));
-    const day = last.getUTCDay(); // 0=Sun..6=Sat
+    const day = last.getUTCDay();
     const back = (day - 1 + 7) % 7;
     last.setUTCDate(last.getUTCDate() - back);
     return last;
 }
 
-// Returns { seasonId: 'YYYY-MM', dayInSeason, seasonLength } for a snapshot date.
-// CoC Legend season ends on the last Monday of the calendar month it's named after.
 function seasonInfo(snapshotDateStr) {
     if (!snapshotDateStr) return { seasonId: '—', dayInSeason: 0, seasonLength: 0 };
     const [Y, M, D] = snapshotDateStr.split('-').map(Number);
@@ -38,7 +52,6 @@ function seasonInfo(snapshotDateStr) {
     let seasonEndY = Y, seasonEndM = M;
     let seasonEnd = lastMondayOfMonth(seasonEndY, seasonEndM);
     if (today > seasonEnd) {
-        // Snapshot is past this month's reset → it belongs to next season.
         seasonEndM += 1;
         if (seasonEndM === 13) { seasonEndM = 1; seasonEndY += 1; }
         seasonEnd = lastMondayOfMonth(seasonEndY, seasonEndM);
@@ -69,34 +82,32 @@ function buildYesterdayRankMap(players) {
 }
 export { buildYesterdayRankMap };
 
-function fmtGain(amount, count) {
-    if (!(amount > 0)) return '—';
-    return `+${amount}${toSuper(count ?? 0)}`;
-}
-
-function fmtLoss(amount, count) {
-    if (!(amount > 0)) return '—';
-    return `-${amount}${toSuper(count ?? 0)}`;
-}
-
-const COL = { gain: 5, loss: 5, final: 5 };
-
-// Approximate trophies a Legend League win/loss is worth — used to estimate
-// lost-defense counts when we don't have per-attack poll data yet.
 const AVG_PER_ACTION = 32;
 
 function estimateLostDefenses(p) {
-    // Real count from the poll function, when available.
     if (typeof p.lostDefenseCount === 'number') return p.lostDefenseCount;
-    // Estimate from net delta: lostTrophies = attackGain − netDelta
     const atks = p.dailyAttacks ?? 0;
     const delta = p.todayDelta ?? 0;
     const estLoss = Math.max(0, atks * AVG_PER_ACTION - delta);
     return Math.round(estLoss / AVG_PER_ACTION);
 }
 
+const COL = { gain: 5, loss: 5, final: 5 };
+const DASH = `${C.muted}—${C.reset}`;
+
+function fmtGain(amount, count) {
+    if (!(amount > 0)) return DASH;
+    return `${C.gain}+${amount}${toSuper(count ?? 0)}${C.reset}`;
+}
+
+function fmtLoss(amount, count) {
+    if (!(amount > 0)) return DASH;
+    return `${C.loss}-${amount}${toSuper(count ?? 0)}${C.reset}`;
+}
+
 export function buildEodLines(filtered) {
-    return filtered.map((p) => {
+    const sorted = [...filtered].sort((a, b) => (b.trophies ?? 0) - (a.trophies ?? 0));
+    return sorted.map((p) => {
         const atks = p.dailyAttacks ?? 0;
         const lostDefs = estimateLostDefenses(p);
         const hasReal = typeof p.dailyGain === 'number' || typeof p.dailyLoss === 'number';
@@ -109,35 +120,37 @@ export function buildEodLines(filtered) {
         } else {
             const delta = p.todayDelta;
             if (delta == null || delta === 0) {
-                gain = '—';
-                loss = '—';
+                gain = DASH;
+                loss = DASH;
             } else if (delta > 0) {
                 gain = fmtGain(delta, atks);
-                loss = '—';
+                loss = DASH;
             } else {
-                gain = '—';
+                gain = DASH;
                 loss = fmtLoss(-delta, lostDefs);
             }
         }
 
-        const final = String(p.trophies ?? 0);
-        const name = LRM + (stripWideChars(p.name || p.tag) || p.tag);
+        const final = `${C.white}${p.trophies ?? 0}${C.reset}`;
+        const name = `${C.white}${LRM}${stripWideChars(p.name || p.tag) || p.tag}${C.reset}`;
 
         return (
-            padEndV(gain, COL.gain) + '  ' +
-            padEndV(loss, COL.loss) + '  ' +
-            padEndV(final, COL.final) + '  ' +
+            padStartV(gain, COL.gain) + '  ' +
+            padStartV(loss, COL.loss) + '  ' +
+            padStartV(final, COL.final) + '  ' +
             name
         );
     });
 }
 
 const HEADER =
-    '```\n' +
-    padEndV('GAIN', COL.gain) + '  ' +
-    padEndV('LOSS', COL.loss) + '  ' +
-    padEndV('FINAL', COL.final) + '  ' +
-    'NAME\n';
+    '```ansi\n' +
+    `${C.muted}` +
+    padStartV('GAIN', COL.gain) + '  ' +
+    padStartV('LOSS', COL.loss) + '  ' +
+    padStartV('FINAL', COL.final) + '  ' +
+    'NAME' +
+    `${C.reset}\n`;
 
 function chunkLines(lines, max = 3900) {
     const chunks = [];
@@ -159,11 +172,12 @@ export function buildEodEmbeds(data, filtered, { title } = {}) {
     const { seasonId, dayInSeason, seasonLength } = seasonInfo(dateStr);
 
     const chunks = chunkLines(lines).map((c) => c + '```');
+    const subtitle = `**Legend League Attacks**\n`;
 
     const head = new EmbedBuilder()
         .setAuthor({ name: 'TWA', iconURL: TWA_AUTHOR_ICON })
-        .setTitle(title || 'Legend League Attacks')
-        .setDescription(chunks[0] || '_Geen spelers in de snapshot._')
+        .setTitle(title || 'TWA Legend League')
+        .setDescription(subtitle + (chunks[0] || '_Geen spelers in de snapshot._'))
         .setColor(TWA_COLOR)
         .setFooter({ text: `End of Day ${dayInSeason}/${seasonLength} (${seasonId})` });
 
