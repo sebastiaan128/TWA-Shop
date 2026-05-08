@@ -3,9 +3,11 @@ import { buildEodEmbeds, fetchEodSnapshot, filterActiveSubs } from './eod-leader
 
 const TWA_COLOR = 0x06b6d4;
 
-// Post hour/minute in UTC. 06:30 UTC = 07:30 CET / 08:30 CEST.
-const POST_HOUR_UTC = 6;
-const POST_MINUTE_UTC = 30;
+// Post as soon after the CoC EOD reset (05:00 UTC) as is safe.
+// Snapshot scheduler kicks off at 05:15 UTC and takes 30s-2min; 05:20 UTC
+// gives it time to finish, then we post immediately.
+const POST_HOUR_UTC = 5;
+const POST_MINUTE_UTC = 20;
 
 function msUntilNextPost(now = new Date()) {
     const next = new Date(now);
@@ -94,7 +96,7 @@ export function startDailyEodScheduler(client) {
         console.log(`[eod:daily] next post scheduled at ${next.toISOString()}`);
         setTimeout(async () => {
             try {
-                const result = await postDailyLeaderboard(client);
+                const result = await postDailyLeaderboard(client, { refresh: true });
                 if (result.ok) {
                     console.log(`[eod:daily] posted leaderboard for ${result.snapshotDate} (${result.count} subs)`);
                 } else {
