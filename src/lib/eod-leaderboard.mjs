@@ -50,10 +50,15 @@ function fmtGain(p) {
 }
 
 function fmtLoss(p) {
-    const atks = p.dailyAttacks ?? 0;
-    const lostDefs = typeof p.lostDefenseCount === 'number'
-        ? p.lostDefenseCount
-        : Math.max(0, Math.round((atks * AVG_PER_ACTION - (p.todayDelta ?? 0)) / AVG_PER_ACTION));
+    let lostDefs;
+    if (typeof p.lostDefenseCount === 'number') {
+        lostDefs = p.lostDefenseCount;
+    } else if (typeof p.todayDelta === 'number' && p.todayDelta < 0) {
+        // Fallback: estimate count of lost defenses purely from the net loss.
+        lostDefs = Math.max(1, Math.round(-p.todayDelta / AVG_PER_ACTION));
+    } else {
+        lostDefs = 0;
+    }
     if (typeof p.dailyLoss === 'number') {
         return p.dailyLoss > 0 ? `-${p.dailyLoss}${sup(lostDefs)}` : '—';
     }
@@ -125,7 +130,7 @@ export function buildEodMessages(data, filtered, { title = 'TWA Legend League', 
 
     // Prepend title/subtitle to first, append footer to last.
     messages[0] = `${titleLine}\n${subtitleLine}\n\n${messages[0]}`;
-    messages[messages.length - 1] = `${messages[messages.length - 1]}\n\n${footerLine}`;
+    messages[messages.length - 1] = `${messages[messages.length - 1]}\n${footerLine}`;
 
     return messages;
 }
