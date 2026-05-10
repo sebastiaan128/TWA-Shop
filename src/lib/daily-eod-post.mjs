@@ -3,16 +3,16 @@ import { buildEodEmbeds, fetchEodSnapshot, filterActiveSubs } from './eod-leader
 
 const TWA_COLOR = 0x06b6d4;
 
-// Post as soon after the CoC EOD reset (05:00 UTC) as is safe.
-// Snapshot scheduler kicks off at 05:15 UTC and takes 30s-2min; 05:20 UTC
-// gives it time to finish, then we post immediately.
-const POST_HOUR_UTC = 5;
+// Refresh hourly at minute 20. The CoC EOD snapshot scheduler kicks off at
+// 05:15 UTC and takes 30s-2min; aligning to :20 keeps the post-EOD refresh
+// safely after the snapshot finishes. Pre-snapshot hours skip gracefully
+// with reason "no snapshot available yet".
 const POST_MINUTE_UTC = 20;
 
 function msUntilNextPost(now = new Date()) {
     const next = new Date(now);
-    next.setUTCHours(POST_HOUR_UTC, POST_MINUTE_UTC, 0, 0);
-    if (next <= now) next.setUTCDate(next.getUTCDate() + 1);
+    next.setUTCMinutes(POST_MINUTE_UTC, 0, 0);
+    if (next <= now) next.setUTCHours(next.getUTCHours() + 1);
     return next - now;
 }
 
