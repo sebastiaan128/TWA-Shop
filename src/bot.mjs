@@ -5,7 +5,7 @@ import { Client, GatewayIntentBits, Partials, Events, REST, Routes, EmbedBuilder
 import { generateFromMessages } from 'discord-html-transcripts';
 import { registerCommandsMap } from './commands/index.mjs';
 import { handleCloseTicket, handleDeleteTicket } from './tickets.mjs';
-import { startDailyEodScheduler } from './lib/daily-eod-post.mjs';
+import { startYesterdayEodScheduler } from './lib/daily-eod-post.mjs';
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
 dotenv.config({ path: path.resolve(__dirname, '../.env') });
@@ -155,7 +155,7 @@ client.once(Events.ClientReady, async (c) => {
     console.log('HEALTHCHECK: OK');
     process.exit(0);
   }
-  startDailyEodScheduler(c);
+  startYesterdayEodScheduler(c);
   console.log('Ready');
 });
 
@@ -169,8 +169,13 @@ client.on(Events.InteractionCreate, async (interaction) => {
       }
     } catch (err) {
       console.error('Fout bij button interactie', err);
-      if (!interaction.replied && !interaction.deferred) {
-        await interaction.reply({ content: 'Er ging iets mis.', ephemeral: true }).catch(() => {});
+      const msg = `Er ging iets mis: ${err?.message || err}`;
+      if (interaction.deferred && !interaction.replied) {
+        await interaction.editReply({ content: msg }).catch(() => {});
+      } else if (!interaction.replied) {
+        await interaction.reply({ content: msg, ephemeral: true }).catch(() => {});
+      } else {
+        await interaction.followUp({ content: msg, ephemeral: true }).catch(() => {});
       }
     }
     return;

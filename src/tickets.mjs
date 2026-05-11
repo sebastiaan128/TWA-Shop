@@ -68,6 +68,23 @@ export async function handleDeleteTicket(interaction, postTranscript) {
     return;
   }
 
-  await postTranscript(interaction.channel);
-  await interaction.channel.delete();
+  // Transcript is best-effort; never block channel deletion on it.
+  try {
+    await postTranscript(interaction.channel);
+  } catch (err) {
+    console.error('postTranscript failed (continuing with delete):', err);
+  }
+
+  try {
+    await interaction.editReply({ content: 'Ticket wordt verwijderd…' });
+  } catch { /* deferReply may have lapsed if transcript took too long */ }
+
+  try {
+    await interaction.channel.delete();
+  } catch (err) {
+    console.error('channel.delete failed:', err);
+    try {
+      await interaction.followUp({ content: `Kon ticket niet verwijderen: ${err.message}`, ephemeral: true });
+    } catch { /* ignore */ }
+  }
 }
