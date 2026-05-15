@@ -1,7 +1,7 @@
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
 import dotenv from 'dotenv';
-import { Client, GatewayIntentBits, Partials, Events, REST, Routes, EmbedBuilder, MessageFlags } from 'discord.js';
+import { Client, GatewayIntentBits, Partials, Events, REST, Routes, EmbedBuilder, MessageFlags, AttachmentBuilder } from 'discord.js';
 import { generateFromMessages } from 'discord-html-transcripts';
 import { registerCommandsMap } from './commands/index.mjs';
 import { handleCloseTicket, handleDeleteTicket } from './tickets.mjs';
@@ -23,6 +23,91 @@ function panelFromChannelName(name) {
   if (name.includes('🛡')) return 'ESL';
   if (name.includes('🧩')) return 'Custom';
   return 'General';
+}
+
+// Plain-text transcript — no React, never throws. Used as a last-resort
+// fallback when discord-html-transcripts cannot render the HTML at all.
+function buildPlainTextTranscript(all, channel) {
+  const lines = [
+    `Transcript — ${channel.name}`,
+    `Exported ${all.length} message(s) — ${new Date().toISOString()}`,
+    '(HTML transcript could not be rendered; plain-text fallback)',
+    '',
+  ];
+  for (const m of all) {
+    const ts = m.createdAt ? m.createdAt.toISOString().replace('T', ' ').slice(0, 19) : '????';
+    const author = m.author?.tag || m.author?.username || 'unknown';
+    let content = m.content || '';
+    if (m.embeds?.length) content += ` [${m.embeds.length} embed(s)]`;
+    if (m.attachments?.size) {
+      content += ' ' + [...m.attachments.values()].map((a) => `[file: ${a.url}]`).join(' ');
+    }
+    if (m.stickers?.size) content += ` [${m.stickers.size} sticker(s)]`;
+    if (m.poll) content += ' [poll]';
+    lines.push(`[${ts}] ${author}: ${content}`.trimEnd());
+  }
+  const buf = Buffer.from(lines.join('\n'), 'utf8');
+  return new AttachmentBuilder(buf, {
+    name: `transcript-${channel.name.replace(/[^\w-]/g, '_')}.txt`,
+  });
+}
+
+// Render an HTML transcript that survives messages discord-html-transcripts
+// cannot handle (polls, forwarded messages, Components V2, …). Layers:
+//  1. render everything;
+//  2. drop messages that fail individually, plus messages replying to them;
+//  3. leave-one-out to catch a remaining context-dependent culprit;
+//  4. guaranteed plain-text fallback.
+async function renderTranscript(all, channel, opts) {
+  try {
+    return await generateFromMessages(all, channel, opts);
+  } catch (err) {
+    console.error('Transcript: full render failed:', err?.message || err);
+  }
+
+  // Messages that cannot render on their own.
+  const badIds = new Set();
+  for (const m of all) {
+    try {
+      await generateFromMessages([m], channel, opts);
+    } catch {
+      badIds.add(m.id);
+    }
+  }
+  // A reply renders a preview of its target — if the target is bad, the reply
+  // breaks too. Propagate transitively up the reply chains.
+  for (let grew = true; grew;) {
+    grew = false;
+    for (const m of all) {
+      const ref = m.reference?.messageId;
+      if (ref && badIds.has(ref) && !badIds.has(m.id)) {
+        badIds.add(m.id);
+        grew = true;
+      }
+    }
+  }
+
+  const good = all.filter((m) => !badIds.has(m.id));
+  try {
+    const att = await generateFromMessages(good, channel, opts);
+    console.error(`Transcript: rendered with ${badIds.size} message(s) skipped:`,
+      [...badIds].join(', '));
+    return att;
+  } catch (err) {
+    console.error('Transcript: render after isolation still failed:', err?.message || err);
+  }
+
+  // One more context-dependent culprit not caught above.
+  for (const m of good) {
+    try {
+      const att = await generateFromMessages(good.filter((x) => x.id !== m.id), channel, opts);
+      console.error(`Transcript: rendered after also dropping ${m.id}`);
+      return att;
+    } catch { /* keep trying */ }
+  }
+
+  console.error('Transcript: HTML render impossible — using plain-text fallback');
+  return buildPlainTextTranscript(all, channel);
 }
 
 async function postTranscript(channel) {
@@ -84,37 +169,15 @@ async function postTranscript(channel) {
     return `${count} - @${display} - ${tag}`;
   }).join('\n') || 'Geen berichten';
 
-  // Generate HTML transcript. discord-html-transcripts can throw on a single
-  // unsupported message (polls, forwarded messages, Components V2, …). When
-  // that happens, isolate and drop the offending messages rather than losing
-  // the entire transcript.
+  // Generate the transcript. renderTranscript() degrades gracefully when
+  // discord-html-transcripts cannot render some/all messages.
   const transcriptOpts = {
     filename: `transcript-${channel.name.replace(/[^\w-]/g, '_')}.html`,
     saveImages: false,
     poweredBy: false,
     footerText: 'Exported {number} message{s}',
   };
-
-  let htmlAttachment;
-  try {
-    htmlAttachment = await generateFromMessages(all, channel, transcriptOpts);
-  } catch (err) {
-    console.error('Transcript render failed, isolating bad messages:', err?.message || err);
-    const good = [];
-    const bad = [];
-    for (const m of all) {
-      try {
-        // Output discarded — we only care whether this message renders.
-        await generateFromMessages([m], channel, transcriptOpts);
-        good.push(m);
-      } catch {
-        bad.push(m);
-      }
-    }
-    console.error(`Transcript: skipped ${bad.length} unrenderable message(s):`,
-      bad.map((m) => m.id).join(', '));
-    htmlAttachment = await generateFromMessages(good, channel, transcriptOpts);
-  }
+  const htmlAttachment = await renderTranscript(all, channel, transcriptOpts);
 
   const transcriptChannel = await channel.client.channels.fetch(TRANSCRIPT_CHANNEL_ID);
 
