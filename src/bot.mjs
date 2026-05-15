@@ -1,7 +1,7 @@
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
 import dotenv from 'dotenv';
-import { Client, GatewayIntentBits, Partials, Events, REST, Routes, EmbedBuilder } from 'discord.js';
+import { Client, GatewayIntentBits, Partials, Events, REST, Routes, EmbedBuilder, MessageFlags } from 'discord.js';
 import { generateFromMessages } from 'discord-html-transcripts';
 import { registerCommandsMap } from './commands/index.mjs';
 import { handleCloseTicket, handleDeleteTicket } from './tickets.mjs';
@@ -84,13 +84,37 @@ async function postTranscript(channel) {
     return `${count} - @${display} - ${tag}`;
   }).join('\n') || 'Geen berichten';
 
-  // Generate HTML transcript
-  const htmlAttachment = await generateFromMessages(all, channel, {
+  // Generate HTML transcript. discord-html-transcripts can throw on a single
+  // unsupported message (polls, forwarded messages, Components V2, …). When
+  // that happens, isolate and drop the offending messages rather than losing
+  // the entire transcript.
+  const transcriptOpts = {
     filename: `transcript-${channel.name.replace(/[^\w-]/g, '_')}.html`,
     saveImages: false,
     poweredBy: false,
     footerText: 'Exported {number} message{s}',
-  });
+  };
+
+  let htmlAttachment;
+  try {
+    htmlAttachment = await generateFromMessages(all, channel, transcriptOpts);
+  } catch (err) {
+    console.error('Transcript render failed, isolating bad messages:', err?.message || err);
+    const good = [];
+    const bad = [];
+    for (const m of all) {
+      try {
+        // Output discarded — we only care whether this message renders.
+        await generateFromMessages([m], channel, transcriptOpts);
+        good.push(m);
+      } catch {
+        bad.push(m);
+      }
+    }
+    console.error(`Transcript: skipped ${bad.length} unrenderable message(s):`,
+      bad.map((m) => m.id).join(', '));
+    htmlAttachment = await generateFromMessages(good, channel, transcriptOpts);
+  }
 
   const transcriptChannel = await channel.client.channels.fetch(TRANSCRIPT_CHANNEL_ID);
 
@@ -173,9 +197,9 @@ client.on(Events.InteractionCreate, async (interaction) => {
       if (interaction.deferred && !interaction.replied) {
         await interaction.editReply({ content: msg }).catch(() => {});
       } else if (!interaction.replied) {
-        await interaction.reply({ content: msg, ephemeral: true }).catch(() => {});
+        await interaction.reply({ content: msg, flags: MessageFlags.Ephemeral }).catch(() => {});
       } else {
-        await interaction.followUp({ content: msg, ephemeral: true }).catch(() => {});
+        await interaction.followUp({ content: msg, flags: MessageFlags.Ephemeral }).catch(() => {});
       }
     }
     return;
@@ -184,17 +208,20 @@ client.on(Events.InteractionCreate, async (interaction) => {
   if (!interaction.isChatInputCommand()) return;
   const command = registerCommandsMap.get(interaction.commandName);
   if (!command) {
-    await interaction.reply({ content: 'Onbekende command.', ephemeral: true });
+    await interaction.reply({ content: 'Onbekende command.', flags: MessageFlags.Ephemeral });
     return;
   }
   try {
     await command.execute(interaction, { clientId, guildId });
   } catch (err) {
     console.error('Fout bij uitvoeren command', err);
-    if (interaction.deferred || interaction.replied) {
-      await interaction.followUp({ content: 'Er ging iets mis.', ephemeral: true });
+    const msg = 'Er ging iets mis.';
+    if (interaction.deferred && !interaction.replied) {
+      await interaction.editReply({ content: msg }).catch(() => {});
+    } else if (interaction.replied) {
+      await interaction.followUp({ content: msg, flags: MessageFlags.Ephemeral }).catch(() => {});
     } else {
-      await interaction.reply({ content: 'Er ging iets mis.', ephemeral: true });
+      await interaction.reply({ content: msg, flags: MessageFlags.Ephemeral }).catch(() => {});
     }
   }
 });

@@ -1,4 +1,4 @@
-import { SlashCommandBuilder } from 'discord.js';
+import { SlashCommandBuilder, MessageFlags } from 'discord.js';
 
 const MONTHS = [
     'January', 'February', 'March', 'April', 'May', 'June',
@@ -32,11 +32,11 @@ async function execute(interaction) {
         const requiredRole = interaction.guild.roles.cache.get(requiredRoleId);
         const hasAccess = requiredRole && member.roles.cache.some(r => r.position >= requiredRole.position);
         if (!hasAccess) {
-            return interaction.reply({ content: 'Je hebt niet de juiste rol om dit commando te gebruiken.', ephemeral: true });
+            return interaction.reply({ content: 'Je hebt niet de juiste rol om dit commando te gebruiken.', flags: MessageFlags.Ephemeral });
         }
     }
 
-    await interaction.deferReply({ ephemeral: true });
+    await interaction.deferReply({ flags: MessageFlags.Ephemeral });
 
     const name = interaction.options.getString('name', true);
     const month = interaction.options.getString('month', true);

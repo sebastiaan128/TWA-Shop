@@ -1,4 +1,4 @@
-import { SlashCommandBuilder, EmbedBuilder } from 'discord.js';
+import { SlashCommandBuilder, EmbedBuilder, MessageFlags } from 'discord.js';
 import { buildEodEmbeds, fetchEodSnapshot, filterActiveSubs } from '../lib/eod-leaderboard.mjs';
 
 const TWA_COLOR = 0x06b6d4;
@@ -116,7 +116,7 @@ async function execute(interaction) {
     const sub = interaction.options.getSubcommand();
     if (sub === 'leaderboard') return executeLeaderboard(interaction);
     if (sub === 'player') return executePlayer(interaction);
-    return interaction.reply({ content: 'Unknown subcommand.', ephemeral: true });
+    return interaction.reply({ content: 'Unknown subcommand.', flags: MessageFlags.Ephemeral });
 }
 
 export default { data, execute };

@@ -1,4 +1,4 @@
-import { SlashCommandBuilder } from 'discord.js';
+import { SlashCommandBuilder, MessageFlags } from 'discord.js';
 import { postDailyLeaderboard } from '../lib/daily-eod-post.mjs';
 
 const data = new SlashCommandBuilder()
@@ -17,11 +17,11 @@ async function execute(interaction) {
         const requiredRole = interaction.guild.roles.cache.get(requiredRoleId);
         const hasAccess = requiredRole && member.roles.cache.some(r => r.position >= requiredRole.position);
         if (!hasAccess) {
-            return interaction.reply({ content: 'Je hebt niet de juiste rol om dit commando te gebruiken.', ephemeral: true });
+            return interaction.reply({ content: 'Je hebt niet de juiste rol om dit commando te gebruiken.', flags: MessageFlags.Ephemeral });
         }
     }
 
-    await interaction.deferReply({ ephemeral: true });
+    await interaction.deferReply({ flags: MessageFlags.Ephemeral });
 
     const channelOverride = interaction.options.getChannel('channel')?.id || null;
     const result = await postDailyLeaderboard(interaction.client, { channelOverride, refresh: true });

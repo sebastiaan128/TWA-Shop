@@ -43,8 +43,8 @@ describe('handleCloseTicket', () => {
 
     await handleCloseTicket(interaction);
 
-    // @everyone + 2 users = 3 calls
-    expect(editOverwrite).toHaveBeenCalledTimes(3);
+    // @everyone + staff role + 2 users = 4 calls
+    expect(editOverwrite).toHaveBeenCalledTimes(4);
     expect(editOverwrite).toHaveBeenCalledWith('user-123', { SendMessages: false });
     expect(editOverwrite).toHaveBeenCalledWith('user-456', { SendMessages: false });
   });
@@ -56,8 +56,8 @@ describe('handleCloseTicket', () => {
 
     await handleCloseTicket(interaction);
 
-    // @everyone + user-123 only, bot-id skipped
-    expect(editOverwrite).toHaveBeenCalledTimes(2);
+    // @everyone + staff role + user-123 only, bot-id skipped
+    expect(editOverwrite).toHaveBeenCalledTimes(3);
     expect(editOverwrite).not.toHaveBeenCalledWith('bot-id', expect.anything());
   });
 

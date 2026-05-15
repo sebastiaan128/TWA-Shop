@@ -1,4 +1,4 @@
-import { SlashCommandBuilder, EmbedBuilder } from 'discord.js';
+import { SlashCommandBuilder, EmbedBuilder, MessageFlags } from 'discord.js';
 
 const data = new SlashCommandBuilder()
   .setName('review')
@@ -67,7 +67,7 @@ async function sendToSite(payload) {
 }
 
 async function execute(interaction) {
-  await interaction.deferReply({ ephemeral: true });
+  await interaction.deferReply({ flags: MessageFlags.Ephemeral });
   const name = interaction.options.getString('name', true);
   const clantag = interaction.options.getString('clantag', true);
   const stars = interaction.options.getInteger('stars', true);

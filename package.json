@@ -17,7 +17,7 @@
   },
   "dependencies": {
     "debug": "^4.4.3",
-    "discord-html-transcripts": "^3.2.0",
+    "discord-html-transcripts": "^3.3.0",
     "discord.js": "^14.16.0",
     "dotenv": "^16.3.1"
   },

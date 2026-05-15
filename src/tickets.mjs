@@ -1,12 +1,13 @@
 /**
  * Ticket close & delete handlers, extracted for testability.
  */
+import { MessageFlags } from 'discord.js';
 
 // Only this role (and higher/admins) can still type after a ticket is closed
 const STAFF_ROLE_ID = '1387134682747113473';
 
 export async function handleCloseTicket(interaction) {
-  await interaction.deferReply({ ephemeral: true });
+  await interaction.deferReply({ flags: MessageFlags.Ephemeral });
   const channel = interaction.channel;
 
   // Deny SEND_MESSAGES for @everyone to lock the channel
@@ -60,7 +61,7 @@ export async function handleCloseTicket(interaction) {
 }
 
 export async function handleDeleteTicket(interaction, postTranscript) {
-  await interaction.deferReply({ ephemeral: true });
+  await interaction.deferReply({ flags: MessageFlags.Ephemeral });
 
   // Only allow staff (ManageChannels permission) to delete tickets
   if (!interaction.memberPermissions?.has('ManageChannels')) {
@@ -69,22 +70,33 @@ export async function handleDeleteTicket(interaction, postTranscript) {
   }
 
   // Transcript is best-effort; never block channel deletion on it.
+  let transcriptError = null;
   try {
     await postTranscript(interaction.channel);
   } catch (err) {
+    transcriptError = err?.message || String(err);
     console.error('postTranscript failed (continuing with delete):', err);
   }
 
   try {
-    await interaction.editReply({ content: 'Ticket wordt verwijderd…' });
+    await interaction.editReply({
+      content: transcriptError
+        ? `⚠️ Transcript mislukt: ${transcriptError}\nTicket wordt alsnog verwijderd…`
+        : 'Ticket wordt verwijderd…',
+    });
   } catch { /* deferReply may have lapsed if transcript took too long */ }
+
+  // Give staff a moment to read the failure before the channel disappears.
+  if (transcriptError) {
+    await new Promise((r) => setTimeout(r, 8000));
+  }
 
   try {
     await interaction.channel.delete();
   } catch (err) {
     console.error('channel.delete failed:', err);
     try {
-      await interaction.followUp({ content: `Kon ticket niet verwijderen: ${err.message}`, ephemeral: true });
+      await interaction.followUp({ content: `Kon ticket niet verwijderen: ${err.message}`, flags: MessageFlags.Ephemeral });
     } catch { /* ignore */ }
   }
 }
