@@ -36,41 +36,59 @@ export function seasonInfo(snapshotDateStr) {
     return { seasonId, dayInSeason: day, seasonLength: length };
 }
 
-const AVG_PER_ACTION = 32;
+const AVG_GAIN_PER_ATTACK = 32;     // typical 2★ legend attack
+const AUTO_LOSS_PER_DEFENSE = 30;   // standard legend "auto-defense" value
+// Legend league hard caps: 8 attacks/day, 8 defenses/day, so any estimated
+// count must be clamped to 8 regardless of the gross we're back-solving from.
+const LEGEND_MAX_ATTACKS = 8;
+const LEGEND_MAX_DEFENSES = 8;
 
+// Estimate an action count from a gross gain/loss when the upstream count is
+// missing. Always derive from the number we're about to display (gross), never
+// from the net trophy delta — net can be tiny or wrong-signed for one side
+// even when that side did a lot of actions (e.g. gain 392 / loss 381 → net 11).
+function estimateAttackCount(grossGain) {
+    return Math.min(LEGEND_MAX_ATTACKS, Math.max(1, Math.round(grossGain / AVG_GAIN_PER_ATTACK)));
+}
+function estimateDefenseCount(grossLoss) {
+    return Math.min(LEGEND_MAX_DEFENSES, Math.max(1, Math.round(grossLoss / AUTO_LOSS_PER_DEFENSE)));
+}
+
+// Reconstructions get `~` instead of `+`/`-`. Measured polling data keeps the
+// normal `+`/`-` so the user can see at a glance which rows are trustworthy.
 function fmtGain(p) {
-    let atks;
-    if (typeof p.attackCount === 'number') {
-        atks = p.attackCount;
-    } else if (typeof p.todayDelta === 'number' && p.todayDelta > 0) {
-        // Fallback: estimate count of attacks purely from the net gain,
-        // mirroring how LOSS count is estimated.
-        atks = Math.max(1, Math.round(p.todayDelta / AVG_PER_ACTION));
-    } else {
-        atks = p.dailyAttacks ?? 0;
-    }
+    const sign = p.gainEstimated ? '~' : '+';
     if (typeof p.dailyGain === 'number') {
-        return p.dailyGain > 0 ? `+${p.dailyGain}${sup(atks)}` : '—';
+        if (p.dailyGain <= 0) return '—';
+        const atks = typeof p.attackCount === 'number'
+            ? Math.min(LEGEND_MAX_ATTACKS, p.attackCount)
+            : estimateAttackCount(p.dailyGain);
+        return `${sign}${p.dailyGain}${sup(atks)}`;
     }
     const d = p.todayDelta;
-    return typeof d === 'number' && d > 0 ? `+${d}${sup(atks)}` : '—';
+    if (typeof d !== 'number' || d <= 0) return '—';
+    const atks = typeof p.attackCount === 'number'
+        ? Math.min(LEGEND_MAX_ATTACKS, p.attackCount)
+        : estimateAttackCount(d);
+    return `${sign}${d}${sup(atks)}`;
 }
 
 function fmtLoss(p) {
-    let lostDefs;
-    if (typeof p.lostDefenseCount === 'number') {
-        lostDefs = p.lostDefenseCount;
-    } else if (typeof p.todayDelta === 'number' && p.todayDelta < 0) {
-        // Fallback: estimate count of lost defenses purely from the net loss.
-        lostDefs = Math.max(1, Math.round(-p.todayDelta / AVG_PER_ACTION));
-    } else {
-        lostDefs = 0;
-    }
+    const sign = p.lossEstimated ? '~' : '-';
     if (typeof p.dailyLoss === 'number') {
-        return p.dailyLoss > 0 ? `-${p.dailyLoss}${sup(lostDefs)}` : '—';
+        if (p.dailyLoss <= 0) return '—';
+        const lostDefs = typeof p.lostDefenseCount === 'number'
+            ? Math.min(LEGEND_MAX_DEFENSES, p.lostDefenseCount)
+            : estimateDefenseCount(p.dailyLoss);
+        return `${sign}${p.dailyLoss}${sup(lostDefs)}`;
     }
     const d = p.todayDelta;
-    return typeof d === 'number' && d < 0 ? `${d}${sup(lostDefs)}` : '—';
+    if (typeof d !== 'number' || d >= 0) return '—';
+    const lostDefs = typeof p.lostDefenseCount === 'number'
+        ? Math.min(LEGEND_MAX_DEFENSES, p.lostDefenseCount)
+        : estimateDefenseCount(-d);
+    // For non-estimated true negative deltas, keep the original `-NNN` form.
+    return p.lossEstimated ? `~${Math.abs(d)}${sup(lostDefs)}` : `${d}${sup(lostDefs)}`;
 }
 
 const COL_GAIN = 6;
