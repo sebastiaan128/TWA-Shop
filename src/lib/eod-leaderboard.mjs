@@ -94,7 +94,7 @@ function fmtLoss(p) {
 const COL_GAIN = 6;
 const COL_LOSS = 6;
 const COL_FINAL = 5;
-const NAME_MAX = 13;
+const NAME_MAX = 16;
 
 // Discord monospace renders superscript digits at the same advance width as
 // normal digits, so plain padEnd is enough — no compensation needed.
@@ -117,7 +117,10 @@ export function buildEodEmbeds(data, filtered, { title = 'TWA Legend League', cl
         const loss = fmtLoss(p);
         const final = String(p.trophies ?? 0);
         const rawName = stripWideChars(p.name || p.tag) || p.tag;
-        const name = rawName.length > NAME_MAX ? rawName.slice(0, NAME_MAX - 1) + '…' : rawName;
+        const truncated = rawName.length > NAME_MAX ? rawName.slice(0, NAME_MAX - 1) + '…' : rawName;
+        // NBSP inside the name so Discord can't wrap "[TW Mootje]" onto two
+        // lines on narrow embed widths (mobile, threads, narrow windows).
+        const name = truncated.replace(/ /g, ' ');
         const star = i === 0 ? ' ★' : '';
         return (
             padCell(gain, COL_GAIN) +
