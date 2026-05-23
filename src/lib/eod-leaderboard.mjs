@@ -117,17 +117,17 @@ export function buildEodEmbeds(data, filtered, { title = 'TWA Legend League', cl
         const loss = fmtLoss(p);
         const final = String(p.trophies ?? 0);
         const rawName = stripWideChars(p.name || p.tag) || p.tag;
-        const truncated = rawName.length > NAME_MAX ? rawName.slice(0, NAME_MAX - 1) + '…' : rawName;
-        // NBSP inside the name so Discord can't wrap "[TW Mootje]" onto two
-        // lines on narrow embed widths (mobile, threads, narrow windows).
-        const name = truncated.replace(/ /g, ' ');
+        const name = rawName.length > NAME_MAX ? rawName.slice(0, NAME_MAX - 1) + '…' : rawName;
         const star = i === 0 ? ' ★' : '';
-        return (
+        const row =
             padCell(gain, COL_GAIN) +
             padCell(loss, COL_LOSS) +
             final.padEnd(COL_FINAL) + '  ' +
-            name + star
-        ).trimEnd();
+            name + star;
+        // NBSP every space in the row so Discord can't break the row apart
+        // on narrow embeds (mobile/threads). Visually identical, but the row
+        // stays atomic — name never lands below the scores.
+        return row.trimEnd().replace(/ /g, ' ');
     });
 
     // One unified triple-backtick block per embed description.
