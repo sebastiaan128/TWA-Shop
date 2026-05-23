@@ -118,7 +118,7 @@ export function buildEodEmbeds(data, filtered, { title = 'TWA Legend League', cl
         const final = String(p.trophies ?? 0);
         const rawName = stripWideChars(p.name || p.tag) || p.tag;
         const name = rawName.length > NAME_MAX ? rawName.slice(0, NAME_MAX - 1) + '…' : rawName;
-        const star = i === 0 ? ' ★' : '';
+        const star = i === 0 ? '★' : '';
         const row =
             padCell(gain, COL_GAIN) +
             padCell(loss, COL_LOSS) +
