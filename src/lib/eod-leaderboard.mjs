@@ -91,9 +91,9 @@ function fmtLoss(p) {
     return p.lossEstimated ? `~${Math.abs(d)}${sup(lostDefs)}` : `${d}${sup(lostDefs)}`;
 }
 
-const COL_GAIN = 6;
-const COL_LOSS = 6;
-const COL_FINAL = 5;
+const COL_GAIN = 5;
+const COL_LOSS = 5;
+const COL_FINAL = 4;
 const NAME_MAX = 16;
 
 // Discord monospace renders superscript digits at the same advance width as
