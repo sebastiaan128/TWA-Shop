@@ -1,9 +1,20 @@
 import { SlashCommandBuilder, MessageFlags } from 'discord.js';
 
-const MONTHS = [
+const MONTH_NAMES = [
     'January', 'February', 'March', 'April', 'May', 'June',
     'July', 'August', 'September', 'October', 'November', 'December'
 ];
+
+function buildMonthChoices() {
+    const now = new Date();
+    return Array.from({ length: 18 }, (_, i) => {
+        const d = new Date(now.getFullYear(), now.getMonth() - 6 + i, 1);
+        const label = `${MONTH_NAMES[d.getMonth()]} ${d.getFullYear()}`;
+        return { name: label, value: label };
+    });
+}
+
+const MONTHS = buildMonthChoices();
 
 const data = new SlashCommandBuilder()
     .setName('sub')
@@ -12,7 +23,7 @@ const data = new SlashCommandBuilder()
         opt.setName('month')
             .setDescription('De maand om op te zoeken')
             .setRequired(true)
-            .addChoices(...MONTHS.map(m => ({ name: m, value: m })))
+            .addChoices(...MONTHS)
     );
 
 async function execute(interaction) {
@@ -35,7 +46,7 @@ async function execute(interaction) {
     }
     let result;
     try {
-        const resp = await fetch(`${url}?month=${month}`, { headers: { 'x-api-key': key } });
+        const resp = await fetch(`${url}?month=${encodeURIComponent(month)}`, { headers: { 'x-api-key': key } });
         if (!resp.ok) throw new Error(`HTTP ${resp.status}`);
         result = await resp.json();
     } catch (err) {

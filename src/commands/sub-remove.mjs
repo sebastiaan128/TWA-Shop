@@ -1,9 +1,21 @@
 import { SlashCommandBuilder, MessageFlags } from 'discord.js';
 
-const MONTHS = [
+const MONTH_NAMES = [
     'January', 'February', 'March', 'April', 'May', 'June',
     'July', 'August', 'September', 'October', 'November', 'December'
 ];
+
+function buildMonthChoices() {
+    const now = new Date();
+    // Include some past months so admins can remove subs from finished seasons.
+    return Array.from({ length: 18 }, (_, i) => {
+        const d = new Date(now.getFullYear(), now.getMonth() - 6 + i, 1);
+        const label = `${MONTH_NAMES[d.getMonth()]} ${d.getFullYear()}`;
+        return { name: label, value: label };
+    });
+}
+
+const MONTHS = buildMonthChoices();
 
 const data = new SlashCommandBuilder()
     .setName('sub-remove')
@@ -17,7 +29,7 @@ const data = new SlashCommandBuilder()
         opt.setName('month')
             .setDescription('De maand')
             .setRequired(true)
-            .addChoices(...MONTHS.map(m => ({ name: m, value: m })))
+            .addChoices(...MONTHS)
     )
     .addUserOption(opt =>
         opt.setName('user')

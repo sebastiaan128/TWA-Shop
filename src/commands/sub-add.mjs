@@ -1,9 +1,22 @@
 import { SlashCommandBuilder, MessageFlags } from 'discord.js';
 
-const MONTHS = [
+const MONTH_NAMES = [
     'January', 'February', 'March', 'April', 'May', 'June',
     'July', 'August', 'September', 'October', 'November', 'December'
 ];
+
+// Discord choices are static, so this list is fixed at command-registration
+// time. Refresh the slash commands (deploy:commands) when a new year rolls in.
+function buildMonthChoices() {
+    const now = new Date();
+    return Array.from({ length: 13 }, (_, i) => {
+        const d = new Date(now.getFullYear(), now.getMonth() + i, 1);
+        const label = `${MONTH_NAMES[d.getMonth()]} ${d.getFullYear()}`;
+        return { name: label, value: label };
+    });
+}
+
+const MONTHS = buildMonthChoices();
 
 const data = new SlashCommandBuilder()
     .setName('sub-add')
@@ -17,7 +30,7 @@ const data = new SlashCommandBuilder()
         opt.setName('month')
             .setDescription('De maand waarvoor ze een sub hebben')
             .setRequired(true)
-            .addChoices(...MONTHS.map(m => ({ name: m, value: m })))
+            .addChoices(...MONTHS)
     )
     .addUserOption(opt =>
         opt.setName('user')
