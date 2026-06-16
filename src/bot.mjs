@@ -251,6 +251,8 @@ client.on(Events.InteractionCreate, async (interaction) => {
     try {
       if (interaction.customId === 'close_ticket') {
         await handleCloseTicket(interaction);
+      } else if (interaction.customId === 'close_ticket_staff') {
+        await handleCloseTicket(interaction, { staffOnly: true });
       } else if (interaction.customId === 'delete_ticket') {
         await handleDeleteTicket(interaction, postTranscript);
       }

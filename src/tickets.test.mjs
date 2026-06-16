@@ -100,6 +100,28 @@ describe('handleCloseTicket', () => {
 
     expect(interaction.editReply).toHaveBeenCalledWith({ content: 'Ticket gesloten.' });
   });
+
+  it('denies non-staff from closing a staffOnly (ESL/CWL) ticket', async () => {
+    const { interaction, editOverwrite, channelSend } = createMockInteraction({ hasManageChannels: false });
+
+    await handleCloseTicket(interaction, { staffOnly: true });
+
+    expect(interaction.editReply).toHaveBeenCalledWith({
+      content: expect.stringContaining('Alleen staff kan dit ticket sluiten'),
+    });
+    // The channel must not be locked when access is denied
+    expect(editOverwrite).not.toHaveBeenCalled();
+    expect(channelSend).not.toHaveBeenCalled();
+  });
+
+  it('allows staff (ManageChannels) to close a staffOnly ticket', async () => {
+    const { interaction, editOverwrite } = createMockInteraction({ hasManageChannels: true });
+
+    await handleCloseTicket(interaction, { staffOnly: true });
+
+    expect(editOverwrite).toHaveBeenCalledWith('guild-1', { SendMessages: false });
+    expect(interaction.editReply).toHaveBeenCalledWith({ content: 'Ticket gesloten.' });
+  });
 });
 
 describe('handleDeleteTicket', () => {

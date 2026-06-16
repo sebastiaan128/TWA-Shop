@@ -6,8 +6,27 @@ import { MessageFlags } from 'discord.js';
 // Only this role (and higher/admins) can still type after a ticket is closed
 const STAFF_ROLE_ID = '1387134682747113473';
 
-export async function handleCloseTicket(interaction) {
+// Staff = anyone who can manage the server's channels (admins, mods) or carries
+// the staff role. Used to gate closing of ESL/CWL delivery tickets.
+function memberCanManageTickets(interaction) {
+  if (interaction.memberPermissions?.has('ManageChannels')) return true;
+  if (interaction.memberPermissions?.has('Administrator')) return true;
+  if (interaction.member?.roles?.cache?.has?.(STAFF_ROLE_ID)) return true;
+  return false;
+}
+
+export async function handleCloseTicket(interaction, { staffOnly = false } = {}) {
   await interaction.deferReply({ flags: MessageFlags.Ephemeral });
+
+  // ESL/CWL tickets deliver the purchased bases here, so only staff may close
+  // them — a buyer closing early could lose access before delivery.
+  if (staffOnly && !memberCanManageTickets(interaction)) {
+    await interaction.editReply({
+      content: 'Alleen staff kan dit ticket sluiten. Houd het open totdat je je bases hebt ontvangen — een teamlid helpt je zo snel mogelijk.',
+    });
+    return;
+  }
+
   const channel = interaction.channel;
 
   // Deny SEND_MESSAGES for @everyone to lock the channel
