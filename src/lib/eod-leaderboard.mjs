@@ -104,7 +104,13 @@ function padCell(value, width) {
 
 export function buildEodEmbeds(data, filtered, { title = 'TWA Legend League', clanTag = '' } = {}) {
     const sorted = [...filtered].sort((a, b) => (b.trophies ?? 0) - (a.trophies ?? 0));
-    const { seasonId, dayInSeason, seasonLength } = seasonInfo(data.snapshotDate);
+    // Prefer the season label computed server-side (real CoC ~28-day cycle).
+    // Fall back to the local last-Monday heuristic only if the API omits it
+    // (older function deploy / missing season cache).
+    const fallback = seasonInfo(data.snapshotDate);
+    const seasonId = data.seasonId ?? fallback.seasonId;
+    const dayInSeason = Number.isFinite(data.dayInSeason) ? data.dayInSeason : fallback.dayInSeason;
+    const seasonLength = Number.isFinite(data.seasonLength) ? data.seasonLength : fallback.seasonLength;
 
     const headerLine =
         'GAIN'.padEnd(COL_GAIN) +
