@@ -54,41 +54,46 @@ function estimateDefenseCount(grossLoss) {
     return Math.min(LEGEND_MAX_DEFENSES, Math.max(1, Math.round(grossLoss / AUTO_LOSS_PER_DEFENSE)));
 }
 
+// A single legend action can swing at most 40 trophies (3★), so a gain/loss of
+// N trophies physically requires at least ceil(N/40) actions. Whatever count
+// the upstream sends (or we estimate), never render a physically impossible
+// ratio like "169 trophies in 1 attack" (~169¹). Floor by ceil(N/40), cap at 8.
+const MAX_TROPHY_PER_ACTION = 40;
+function clampActionCount(rawCount, trophies, max) {
+    const floor = Math.max(1, Math.ceil(trophies / MAX_TROPHY_PER_ACTION));
+    return Math.min(max, Math.max(floor, rawCount));
+}
+
 // Reconstructions get `~` instead of `+`/`-`. Measured polling data keeps the
 // normal `+`/`-` so the user can see at a glance which rows are trustworthy.
 function fmtGain(p) {
     const sign = p.gainEstimated ? '~' : '+';
-    if (typeof p.dailyGain === 'number') {
-        if (p.dailyGain <= 0) return '—';
-        const atks = typeof p.attackCount === 'number'
-            ? Math.min(LEGEND_MAX_ATTACKS, p.attackCount)
-            : estimateAttackCount(p.dailyGain);
-        return `${sign}${p.dailyGain}${sup(atks)}`;
-    }
-    const d = p.todayDelta;
-    if (typeof d !== 'number' || d <= 0) return '—';
-    const atks = typeof p.attackCount === 'number'
-        ? Math.min(LEGEND_MAX_ATTACKS, p.attackCount)
-        : estimateAttackCount(d);
-    return `${sign}${d}${sup(atks)}`;
+    const gain = typeof p.dailyGain === 'number' ? p.dailyGain : p.todayDelta;
+    if (typeof gain !== 'number' || gain <= 0) return '—';
+    const raw = typeof p.attackCount === 'number' ? p.attackCount : estimateAttackCount(gain);
+    const atks = clampActionCount(raw, gain, LEGEND_MAX_ATTACKS);
+    return `${sign}${gain}${sup(atks)}`;
 }
 
 function fmtLoss(p) {
     const sign = p.lossEstimated ? '~' : '-';
     if (typeof p.dailyLoss === 'number') {
         if (p.dailyLoss <= 0) return '—';
-        const lostDefs = typeof p.lostDefenseCount === 'number'
-            ? Math.min(LEGEND_MAX_DEFENSES, p.lostDefenseCount)
+        const raw = typeof p.lostDefenseCount === 'number'
+            ? p.lostDefenseCount
             : estimateDefenseCount(p.dailyLoss);
+        const lostDefs = clampActionCount(raw, p.dailyLoss, LEGEND_MAX_DEFENSES);
         return `${sign}${p.dailyLoss}${sup(lostDefs)}`;
     }
     const d = p.todayDelta;
     if (typeof d !== 'number' || d >= 0) return '—';
-    const lostDefs = typeof p.lostDefenseCount === 'number'
-        ? Math.min(LEGEND_MAX_DEFENSES, p.lostDefenseCount)
-        : estimateDefenseCount(-d);
+    const loss = Math.abs(d);
+    const raw = typeof p.lostDefenseCount === 'number'
+        ? p.lostDefenseCount
+        : estimateDefenseCount(loss);
+    const lostDefs = clampActionCount(raw, loss, LEGEND_MAX_DEFENSES);
     // For non-estimated true negative deltas, keep the original `-NNN` form.
-    return p.lossEstimated ? `~${Math.abs(d)}${sup(lostDefs)}` : `${d}${sup(lostDefs)}`;
+    return p.lossEstimated ? `~${loss}${sup(lostDefs)}` : `${d}${sup(lostDefs)}`;
 }
 
 const COL_GAIN = 5;
