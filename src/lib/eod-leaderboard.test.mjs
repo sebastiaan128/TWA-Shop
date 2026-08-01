@@ -3,7 +3,7 @@ import { buildEodEmbeds } from './eod-leaderboard.mjs';
 
 const players = [{ tag: '#ABC', name: 'Player One', trophies: 5200 }];
 
-describe('buildEodEmbeds — season label', () => {
+describe('buildEodEmbeds, season label', () => {
   it('uses the server-provided dayInSeason/seasonLength in the title', () => {
     const data = {
       snapshotDate: '2026-06-15',
@@ -24,7 +24,7 @@ describe('buildEodEmbeds — season label', () => {
   });
 });
 
-describe('buildEodEmbeds — physical floor on action counts', () => {
+describe('buildEodEmbeds, physical floor on action counts', () => {
   const data = {
     snapshotDate: '2026-06-17',
     seasonId: '2026-06',

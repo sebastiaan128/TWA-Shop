@@ -28,7 +28,7 @@ async function executeLeaderboard(interaction) {
     }
 
     if (!data?.ok || !data.players?.length) {
-        return interaction.editReply('No snapshot available yet — the first snapshot appears after the next 05:15 UTC reset.');
+        return interaction.editReply('No snapshot available yet, the first snapshot appears after the next 05:15 UTC reset.');
     }
 
     let filtered;

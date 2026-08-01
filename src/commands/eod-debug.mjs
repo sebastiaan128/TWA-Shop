@@ -65,11 +65,11 @@ async function execute(interaction) {
         lines.push(
             `**${p.name}** \`${p.tag}\`\n` +
             `  rank #${p.rank} · ${p.trophies} 🏆\n` +
-            `  league: ${p.league?.name || '—'} (id ${p.league?.id ?? '—'})\n` +
+            `  league: ${p.league?.name || '-'} (id ${p.league?.id ?? '-'})\n` +
             `  discordUserId: \`${p.discordUserId || '(none)'}\`\n` +
             `  role: ${roleStatus}\n` +
-            `  todayDelta: ${p.todayDelta ?? '—'} · attacks: ${p.dailyAttacks ?? '—'} · defWins: ${p.dailyDefenses ?? '—'}\n` +
-            `  dailyGain: ${p.dailyGain ?? '—'} · dailyLoss: ${p.dailyLoss ?? '—'} · attackCount: ${p.attackCount ?? '—'} · lostDefenseCount: ${p.lostDefenseCount ?? '—'}`
+            `  todayDelta: ${p.todayDelta ?? '-'} · attacks: ${p.dailyAttacks ?? '-'} · defWins: ${p.dailyDefenses ?? '-'}\n` +
+            `  dailyGain: ${p.dailyGain ?? '-'} · dailyLoss: ${p.dailyLoss ?? '-'} · attackCount: ${p.attackCount ?? '-'} · lostDefenseCount: ${p.lostDefenseCount ?? '-'}`
         );
     }
 
