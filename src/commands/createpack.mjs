@@ -80,7 +80,7 @@ async function execute(interaction) {
 
   const msg = await interaction.editReply({
     content:
-      `**${name}** — pick the bases, in the order buyers should see them.\n` +
+      `**${name}**: pick the bases, in the order buyers should see them.\n` +
       `Showing the ${bases.length} most recent${type ? ` ${type}` : ''} base${bases.length === 1 ? '' : 's'}.`,
     components: [new ActionRowBuilder().addComponents(menu)],
   });
@@ -124,7 +124,7 @@ async function execute(interaction) {
         { name: 'Bases', value: String(res.baseCount), inline: true },
         { name: 'Expected users', value: String(seats), inline: true },
       )
-      .setFooter({ text: 'Draft — publish it on the site to start delivering it.' });
+      .setFooter({ text: 'Draft. Publish it on the site to start delivering it.' });
 
     return interaction.editReply({
       content:
