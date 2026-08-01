@@ -4,8 +4,10 @@ import { MessageFlags } from 'discord.js';
  * Role gate for staff-only commands.
  *
  * Matches the check already used by the eod commands: a member passes if they
- * hold any role at or above the required role's position, so promoting someone
- * does not mean re-granting a specific role.
+ * hold any role at or above the required role's position. Positional rather
+ * than an exact match on purpose -- the roles ABOVE the required one are the
+ * more senior ones, so they get access without anyone having to also grant
+ * them the lower role.
  *
  * Fails CLOSED when no role is configured. The eod commands fail open (skip the
  * check entirely if the env var is missing), which is tolerable for reading a

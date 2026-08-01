@@ -44,7 +44,7 @@ const data = new SlashCommandBuilder()
       ));
 
 async function execute(interaction) {
-  if (!(await requireStaff(interaction))) return;
+  if (!(await requireStaff(interaction, { roleEnv: 'BASES_REQUIRED_ROLE_ID' }))) return;
   await interaction.deferReply({ flags: MessageFlags.Ephemeral });
 
   const name = interaction.options.getString('name', true);

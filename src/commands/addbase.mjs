@@ -37,7 +37,7 @@ const data = new SlashCommandBuilder()
     o.setName('tags').setDescription('Comma separated, e.g. anti-3, ring').setRequired(false));
 
 async function execute(interaction) {
-  if (!(await requireStaff(interaction))) return;
+  if (!(await requireStaff(interaction, { roleEnv: 'BASES_REQUIRED_ROLE_ID' }))) return;
 
   // The image is fetched and re-hosted server-side, which can take a moment.
   await interaction.deferReply({ flags: MessageFlags.Ephemeral });
