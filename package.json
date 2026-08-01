@@ -10,7 +10,8 @@
     "dev": "node --watch src/bot.mjs",
     "test": "vitest run",
     "deploy:commands": "node src/deploy-commands.mjs",
-    "invite:url": "node src/create-invite-url.mjs"
+    "invite:url": "node src/create-invite-url.mjs",
+    "postinstall": "node scripts/sync-deploy.mjs"
   },
   "engines": {
     "node": ">=18.17"
