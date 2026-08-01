@@ -19,10 +19,10 @@ export async function handleCloseTicket(interaction, { staffOnly = false } = {})
   await interaction.deferReply({ flags: MessageFlags.Ephemeral });
 
   // ESL/CWL tickets deliver the purchased bases here, so only staff may close
-  // them — a buyer closing early could lose access before delivery.
+  // them, a buyer closing early could lose access before delivery.
   if (staffOnly && !memberCanManageTickets(interaction)) {
     await interaction.editReply({
-      content: 'Alleen staff kan dit ticket sluiten. Houd het open totdat je je bases hebt ontvangen — een teamlid helpt je zo snel mogelijk.',
+      content: 'Alleen staff kan dit ticket sluiten. Houd het open totdat je je bases hebt ontvangen, een teamlid helpt je zo snel mogelijk.',
     });
     return;
   }

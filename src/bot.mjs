@@ -25,12 +25,12 @@ function panelFromChannelName(name) {
   return 'General';
 }
 
-// Plain-text transcript — no React, never throws. Used as a last-resort
+// Plain-text transcript, no React, never throws. Used as a last-resort
 // fallback when discord-html-transcripts cannot render the HTML at all.
 function buildPlainTextTranscript(all, channel) {
   const lines = [
-    `Transcript — ${channel.name}`,
-    `Exported ${all.length} message(s) — ${new Date().toISOString()}`,
+    `Transcript, ${channel.name}`,
+    `Exported ${all.length} message(s), ${new Date().toISOString()}`,
     '(HTML transcript could not be rendered; plain-text fallback)',
     '',
   ];
@@ -74,7 +74,7 @@ async function renderTranscript(all, channel, opts) {
       badIds.add(m.id);
     }
   }
-  // A reply renders a preview of its target — if the target is bad, the reply
+  // A reply renders a preview of its target, if the target is bad, the reply
   // breaks too. Propagate transitively up the reply chains.
   for (let grew = true; grew;) {
     grew = false;
@@ -106,7 +106,7 @@ async function renderTranscript(all, channel, opts) {
     } catch { /* keep trying */ }
   }
 
-  console.error('Transcript: HTML render impossible — using plain-text fallback');
+  console.error('Transcript: HTML render impossible, using plain-text fallback');
   return buildPlainTextTranscript(all, channel);
 }
 

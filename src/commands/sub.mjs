@@ -66,7 +66,7 @@ async function execute(interaction) {
         } catch { /* fall back to stored name */ }
     }
 
-    const header = `**Legend League subs — ${month}** (${result.count})\n`;
+    const header = `**Legend League subs, ${month}** (${result.count})\n`;
     const lines = result.buyers.map((b, i) => {
         const name = (b.discordUserId && memberMap.get(b.discordUserId)) || b.username;
         return `${i + 1}. ${name}`;

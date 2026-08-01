@@ -17,7 +17,7 @@ function lastMondayOfMonth(year, month) {
 }
 
 export function seasonInfo(snapshotDateStr) {
-    if (!snapshotDateStr) return { seasonId: '—', dayInSeason: 0, seasonLength: 0 };
+    if (!snapshotDateStr) return { seasonId: '-', dayInSeason: 0, seasonLength: 0 };
     const [Y, M, D] = snapshotDateStr.split('-').map(Number);
     const today = new Date(Date.UTC(Y, M - 1, D));
     let seasonEndY = Y, seasonEndM = M;
@@ -45,7 +45,7 @@ const LEGEND_MAX_DEFENSES = 8;
 
 // Estimate an action count from a gross gain/loss when the upstream count is
 // missing. Always derive from the number we're about to display (gross), never
-// from the net trophy delta — net can be tiny or wrong-signed for one side
+// from the net trophy delta, net can be tiny or wrong-signed for one side
 // even when that side did a lot of actions (e.g. gain 392 / loss 381 → net 11).
 function estimateAttackCount(grossGain) {
     return Math.min(LEGEND_MAX_ATTACKS, Math.max(1, Math.round(grossGain / AVG_GAIN_PER_ATTACK)));
@@ -69,7 +69,7 @@ function clampActionCount(rawCount, trophies, max) {
 function fmtGain(p) {
     const sign = p.gainEstimated ? '~' : '+';
     const gain = typeof p.dailyGain === 'number' ? p.dailyGain : p.todayDelta;
-    if (typeof gain !== 'number' || gain <= 0) return '—';
+    if (typeof gain !== 'number' || gain <= 0) return '-';
     const raw = typeof p.attackCount === 'number' ? p.attackCount : estimateAttackCount(gain);
     const atks = clampActionCount(raw, gain, LEGEND_MAX_ATTACKS);
     return `${sign}${gain}${sup(atks)}`;
@@ -78,7 +78,7 @@ function fmtGain(p) {
 function fmtLoss(p) {
     const sign = p.lossEstimated ? '~' : '-';
     if (typeof p.dailyLoss === 'number') {
-        if (p.dailyLoss <= 0) return '—';
+        if (p.dailyLoss <= 0) return '-';
         const raw = typeof p.lostDefenseCount === 'number'
             ? p.lostDefenseCount
             : estimateDefenseCount(p.dailyLoss);
@@ -86,7 +86,7 @@ function fmtLoss(p) {
         return `${sign}${p.dailyLoss}${sup(lostDefs)}`;
     }
     const d = p.todayDelta;
-    if (typeof d !== 'number' || d >= 0) return '—';
+    if (typeof d !== 'number' || d >= 0) return '-';
     const loss = Math.abs(d);
     const raw = typeof p.lostDefenseCount === 'number'
         ? p.lostDefenseCount
@@ -102,7 +102,7 @@ const COL_FINAL = 4;
 const NAME_MAX = 16;
 
 // Discord monospace renders superscript digits at the same advance width as
-// normal digits, so plain padEnd is enough — no compensation needed.
+// normal digits, so plain padEnd is enough, no compensation needed.
 function padCell(value, width) {
     return value.padEnd(width);
 }
@@ -137,7 +137,7 @@ export function buildEodEmbeds(data, filtered, { title = 'TWA Legend League', cl
             name + star;
         // NBSP every space in the row so Discord can't break the row apart
         // on narrow embeds (mobile/threads). Visually identical, but the row
-        // stays atomic — name never lands below the scores.
+        // stays atomic, name never lands below the scores.
         return row.trimEnd().replace(/ /g, ' ');
     });
 
