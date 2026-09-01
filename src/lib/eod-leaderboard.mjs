@@ -7,33 +7,36 @@ function stripWideChars(s) {
     return s.replace(/[\p{Extended_Pictographic}‍️​]/gu, '').replace(/\s{2,}/g, ' ').trim();
 }
 
-// Last Monday of a given UTC year/month (month is 1–12).
-function lastMondayOfMonth(year, month) {
-    const last = new Date(Date.UTC(year, month, 0));
-    const day = last.getUTCDay();
-    const back = (day - 1 + 7) % 7;
-    last.setUTCDate(last.getUTCDate() - back);
-    return last;
-}
+// Fallback season math, used only when the API response omits the season
+// fields (older function deploy, or the season cache is empty). Mirrors
+// TW-architects/functions/lib/legend-season.js so the bot and the shop never
+// disagree about which day of which season it is; keep the two in step.
+//
+// CoC is on a ~28-day cycle, not the old "last Monday of the month" one, and
+// season lengths vary in whole weeks (21, 28 and 35 have all shipped). Without
+// the seasons list all we can do is step whole cadences off a confirmed
+// anchor: 2026-08-03 05:00 UTC, season id "v2-2026-08-03T05:00:00Z".
+const DAY_MS = 86400000;
+const SEASON_ANCHOR_MS = Date.UTC(2026, 7, 3, 5, 0, 0);
+const SEASON_CADENCE_DAYS = 28;
 
 export function seasonInfo(snapshotDateStr) {
     if (!snapshotDateStr) return { seasonId: '-', dayInSeason: 0, seasonLength: 0 };
     const [Y, M, D] = snapshotDateStr.split('-').map(Number);
-    const today = new Date(Date.UTC(Y, M - 1, D));
-    let seasonEndY = Y, seasonEndM = M;
-    let seasonEnd = lastMondayOfMonth(seasonEndY, seasonEndM);
-    if (today > seasonEnd) {
-        seasonEndM += 1;
-        if (seasonEndM === 13) { seasonEndM = 1; seasonEndY += 1; }
-        seasonEnd = lastMondayOfMonth(seasonEndY, seasonEndM);
-    }
-    let prevY = seasonEndY, prevM = seasonEndM - 1;
-    if (prevM === 0) { prevM = 12; prevY -= 1; }
-    const prevEnd = lastMondayOfMonth(prevY, prevM);
-    const day = Math.round((today - prevEnd) / 86400000);
-    const length = Math.round((seasonEnd - prevEnd) / 86400000);
-    const seasonId = `${seasonEndY}-${String(seasonEndM).padStart(2, '0')}`;
-    return { seasonId, dayInSeason: day, seasonLength: length };
+    const snapMs = Date.UTC(Y, M - 1, D, 5, 0, 0);
+
+    const cadenceMs = SEASON_CADENCE_DAYS * DAY_MS;
+    let startMs = SEASON_ANCHOR_MS;
+    while (startMs > snapMs) startMs -= cadenceMs;
+    while (startMs + cadenceMs <= snapMs) startMs += cadenceMs;
+    const endMs = startMs + cadenceMs;
+
+    const end = new Date(endMs);
+    return {
+        seasonId: `${end.getUTCFullYear()}-${String(end.getUTCMonth() + 1).padStart(2, '0')}`,
+        dayInSeason: Math.floor((snapMs - startMs) / DAY_MS) + 1,
+        seasonLength: SEASON_CADENCE_DAYS,
+    };
 }
 
 const AVG_GAIN_PER_ATTACK = 32;     // typical 2★ legend attack
