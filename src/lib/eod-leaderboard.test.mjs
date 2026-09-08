@@ -1,5 +1,5 @@
 import { describe, it, expect } from 'vitest';
-import { buildEodEmbeds } from './eod-leaderboard.mjs';
+import { buildEodEmbeds, seasonInfo } from './eod-leaderboard.mjs';
 
 const players = [{ tag: '#ABC', name: 'Player One', trophies: 5200 }];
 
@@ -21,6 +21,30 @@ describe('buildEodEmbeds, season label', () => {
     // No seasonId/dayInSeason/seasonLength on data → local seasonInfo() runs.
     const [first] = buildEodEmbeds({ snapshotDate: '2026-06-15' }, players);
     expect(first.title).toMatch(/End of Day \d+\/\d+/);
+  });
+});
+
+describe('seasonInfo fallback', () => {
+  // The old implementation used "last Monday of the month", which put the
+  // reset on 2026-08-31. CoC actually reset on 2026-08-03 (season id
+  // "v2-2026-08-03T05:00:00Z"), a full four weeks earlier.
+  it('puts Day 1 on the confirmed 2026-08-03 reset, not the last Monday', () => {
+    expect(seasonInfo('2026-08-03').dayInSeason).toBe(1);
+    expect(seasonInfo('2026-08-04').dayInSeason).toBe(2);
+    expect(seasonInfo('2026-08-30').dayInSeason).toBe(28);
+  });
+
+  it('steps whole 28-day cadences backwards off the anchor', () => {
+    expect(seasonInfo('2026-07-06').dayInSeason).toBe(1);
+    expect(seasonInfo('2026-06-08').dayInSeason).toBe(1);
+  });
+
+  it('always reports a whole-week season length', () => {
+    expect(seasonInfo('2026-08-15').seasonLength % 7).toBe(0);
+  });
+
+  it('returns a neutral shape for a missing snapshot date', () => {
+    expect(seasonInfo(null)).toEqual({ seasonId: '-', dayInSeason: 0, seasonLength: 0 });
   });
 });
 
