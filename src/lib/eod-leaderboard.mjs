@@ -31,9 +31,13 @@ export function seasonInfo(snapshotDateStr) {
     while (startMs + cadenceMs <= snapMs) startMs += cadenceMs;
     const endMs = startMs + cadenceMs;
 
-    const end = new Date(endMs);
+    // A season is named after the month its MIDPOINT falls in, not its reset
+    // month: 2026-08-31 -> 2026-10-05 is 35 days, resets in October, and is
+    // the September season everywhere else. Mirrors seasonMonthFor() in
+    // TW-architects/functions/lib/legend-season.js; keep the two in step.
+    const mid = new Date(startMs + (endMs - startMs) / 2);
     return {
-        seasonId: `${end.getUTCFullYear()}-${String(end.getUTCMonth() + 1).padStart(2, '0')}`,
+        seasonId: `${mid.getUTCFullYear()}-${String(mid.getUTCMonth() + 1).padStart(2, '0')}`,
         dayInSeason: Math.floor((snapMs - startMs) / DAY_MS) + 1,
         seasonLength: SEASON_CADENCE_DAYS,
     };
