@@ -34,7 +34,9 @@ const data = new SlashCommandBuilder()
   .addStringOption((o) =>
     o.setName('notes').setDescription('Shown to buyers in the pack PDF').setRequired(false))
   .addStringOption((o) =>
-    o.setName('tags').setDescription('Comma separated, e.g. anti-3, ring').setRequired(false));
+    o.setName('tags').setDescription('Comma separated, e.g. anti-3, ring').setRequired(false))
+  .addStringOption((o) =>
+    o.setName('season').setDescription('Legend season, e.g. "September 2026". Defaults to the current season.').setRequired(false));
 
 async function execute(interaction) {
   if (!(await requireStaff(interaction, { roleEnv: 'BASES_REQUIRED_ROLE_ID' }))) return;
@@ -47,6 +49,7 @@ async function execute(interaction) {
   const link = interaction.options.getString('link', true);
   const notes = interaction.options.getString('notes') || '';
   const tagsRaw = interaction.options.getString('tags') || '';
+  const season = interaction.options.getString('season') || null;
   const attachment = interaction.options.getAttachment('screenshot');
 
   if (attachment && !(attachment.contentType || '').startsWith('image/')) {
@@ -64,6 +67,7 @@ async function execute(interaction) {
       screenshotUrl: attachment?.url || null,
       notes,
       tags: tagsRaw.split(',').map((t) => t.trim()).filter(Boolean),
+      legendMonth: season,
     });
 
     const embed = new EmbedBuilder()
@@ -79,9 +83,12 @@ async function execute(interaction) {
     const warn = attachment && !res.imageHosted
       ? '\n⚠️ The screenshot could not be saved. Add it on the site.'
       : '';
+    // Surfaced immediately so a wrong default season is caught here rather
+    // than discovered later as "the base I posted never arrived".
+    const seasonLine = res.legendMonth ? `\nSeason: **${res.legendMonth}**` : '';
 
     return interaction.editReply({
-      content: `Added to the library. Edit tags and notes on the site.${warn}`,
+      content: `Added to the library. Edit tags and notes on the site.${warn}${seasonLine}`,
       embeds: [embed],
     });
   } catch (e) {
