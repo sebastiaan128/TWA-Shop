@@ -45,5 +45,9 @@ async function call(path, { method = 'POST', body } = {}) {
 
 export const saveBase = (base) => call('/api/bot/bases', { body: base });
 export const savePack = (pack) => call('/api/bot/packs', { body: pack });
-export const listBases = (type) =>
-  call(`/api/bot/bases/list?limit=25${type ? `&type=${encodeURIComponent(type)}` : ''}`, { method: 'GET' });
+export const listBases = (type, q) =>
+  call(`/api/bot/bases/list?limit=25${type ? `&type=${encodeURIComponent(type)}` : ''}`
+    + `${q ? `&q=${encodeURIComponent(q)}` : ''}`, { method: 'GET' });
+// Partial: only the fields present are touched, so a builder fixing a title
+// cannot blank the notes they are not editing.
+export const updateBase = (patch) => call('/api/bot/bases/update', { body: patch });

@@ -270,6 +270,22 @@ client.on(Events.InteractionCreate, async (interaction) => {
     return;
   }
 
+  // Autocomplete arrives as its own interaction type and must be answered
+  // within three seconds, so it is handled before anything heavier. A command
+  // without an autocomplete handler gets an empty list rather than silence,
+  // which Discord shows as "no options" instead of a spinner that never ends.
+  if (interaction.isAutocomplete()) {
+    const cmd = registerCommandsMap.get(interaction.commandName);
+    if (cmd?.autocomplete) {
+      await cmd.autocomplete(interaction).catch((e) => {
+        console.error(`[autocomplete] ${interaction.commandName}:`, e?.message || e);
+      });
+    } else {
+      await interaction.respond([]).catch(() => {});
+    }
+    return;
+  }
+
   if (!interaction.isChatInputCommand()) return;
   const command = registerCommandsMap.get(interaction.commandName);
   if (!command) {

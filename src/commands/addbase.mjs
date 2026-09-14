@@ -3,7 +3,7 @@ import {
   ActionRowBuilder, ButtonBuilder, ButtonStyle,
 } from 'discord.js';
 import { requireStaff } from '../lib/staff-gate.mjs';
-import { saveBase } from '../lib/bases-api.mjs';
+import { saveBase, updateBase } from '../lib/bases-api.mjs';
 import { buildShowcase, SHOWCASE_REACTIONS } from '../lib/base-showcase.mjs';
 
 /**
@@ -132,6 +132,16 @@ async function execute(interaction) {
 
           const posted = await interaction.channel.send({ embeds: [showEmbed], components: [row] });
           postNote = '\nPosted in this channel.';
+
+          // Remembered so /editbase can correct this message in place. Without
+          // it a fixed library entry sits next to a stale post that nobody can
+          // tell is stale. Best effort: the post already succeeded, and losing
+          // the pointer is worth less than an error the builder acts on.
+          await updateBase({
+            id: res.id,
+            postedChannelId: posted.channelId,
+            postedMessageId: posted.id,
+          }).catch(() => {});
 
           // Decoration, so a missing Add Reactions permission must not turn a
           // successful post into an error the builder then tries to fix.
