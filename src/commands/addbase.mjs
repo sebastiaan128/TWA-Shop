@@ -1,6 +1,10 @@
-import { SlashCommandBuilder, EmbedBuilder, MessageFlags } from 'discord.js';
+import {
+  SlashCommandBuilder, EmbedBuilder, MessageFlags,
+  ActionRowBuilder, ButtonBuilder, ButtonStyle,
+} from 'discord.js';
 import { requireStaff } from '../lib/staff-gate.mjs';
 import { saveBase } from '../lib/bases-api.mjs';
+import { buildShowcase } from '../lib/base-showcase.mjs';
 
 /**
  * /addbase — quick capture for a base you just built.
@@ -36,7 +40,9 @@ const data = new SlashCommandBuilder()
   .addStringOption((o) =>
     o.setName('tags').setDescription('Comma separated, e.g. anti-3, ring').setRequired(false))
   .addStringOption((o) =>
-    o.setName('season').setDescription('Legend season, e.g. "September 2026". Defaults to the current season.').setRequired(false));
+    o.setName('season').setDescription('Legend season, e.g. "September 2026". Defaults to the current season.').setRequired(false))
+  .addBooleanOption((o) =>
+    o.setName('post').setDescription('Also show this base publicly in this channel').setRequired(false));
 
 async function execute(interaction) {
   if (!(await requireStaff(interaction, { roleEnv: 'BASES_REQUIRED_ROLE_ID' }))) return;
@@ -87,8 +93,46 @@ async function execute(interaction) {
     // than discovered later as "the base I posted never arrived".
     const seasonLine = res.legendMonth ? `\nSeason: **${res.legendMonth}**` : '';
 
+    // Showing the base publicly is a separate, opt-in step. Every base type
+    // goes through this command, including the war and CWL layouts that are
+    // sold inside packs -- publishing one of those by default would give away
+    // a paid product on the builder's first typo.
+    let postNote = '';
+    if (interaction.options.getBoolean('post')) {
+      try {
+        const show = buildShowcase({
+          title,
+          saved: res,
+          screenshotUrl: attachment?.url || null,
+          siteUrl: process.env.BASES_API_URL,
+        });
+
+        const showEmbed = new EmbedBuilder()
+          .setTitle(show.title)
+          .setColor(0x2a6fae)
+          .addFields({ name: 'Town Hall', value: show.townHall, inline: true });
+        if (show.season) showEmbed.addFields({ name: 'Season', value: show.season, inline: true });
+        if (show.imageUrl) showEmbed.setImage(show.imageUrl);
+
+        const row = new ActionRowBuilder().addComponents(
+          new ButtonBuilder()
+            .setLabel('Open in your account')
+            .setStyle(ButtonStyle.Link)
+            .setURL(show.accountUrl),
+        );
+
+        await interaction.channel.send({ embeds: [showEmbed], components: [row] });
+        postNote = '\nPosted in this channel.';
+      } catch (e) {
+        // The base is already saved at this point. A failed post must read as
+        // exactly that, not as a failed save -- otherwise the builder adds it
+        // a second time and the library ends up with a duplicate.
+        postNote = `\n⚠️ Saved, but could not post it here: ${e.message}`;
+      }
+    }
+
     return interaction.editReply({
-      content: `Added to the library. Edit tags and notes on the site.${warn}${seasonLine}`,
+      content: `Added to the library. Edit tags and notes on the site.${warn}${seasonLine}${postNote}`,
       embeds: [embed],
     });
   } catch (e) {
