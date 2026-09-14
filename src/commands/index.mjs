@@ -10,8 +10,9 @@ import eodYesterdayTest from './eod-yesterday-test.mjs';
 import eodDebug from './eod-debug.mjs';
 import addbase from './addbase.mjs';
 import createpack from './createpack.mjs';
+import editbase from './editbase.mjs';
 
-export const registerCommands = [ping.data, role.data, review.data, sub.data, subAdd.data, subRemove.data, eod.data, eodTest.data, eodYesterdayTest.data, eodDebug.data, addbase.data, createpack.data];
+export const registerCommands = [ping.data, role.data, review.data, sub.data, subAdd.data, subRemove.data, eod.data, eodTest.data, eodYesterdayTest.data, eodDebug.data, addbase.data, createpack.data, editbase.data];
 export const registerCommandsMap = new Map([
   [ping.data.name, ping],
   [role.data.name, role],
@@ -25,4 +26,5 @@ export const registerCommandsMap = new Map([
   [eodDebug.data.name, eodDebug],
   [addbase.data.name, addbase],
   [createpack.data.name, createpack],
+  [editbase.data.name, editbase],
 ]);
