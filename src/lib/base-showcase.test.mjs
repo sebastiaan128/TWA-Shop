@@ -4,6 +4,16 @@ import { buildShowcase } from './base-showcase.mjs';
 const SAVED = { id: 'abc123', thLevel: 17, mode: 'HV', legendMonth: 'September 2026', imageHosted: true };
 
 describe('buildShowcase', () => {
+  it('decorates the title with both icons', () => {
+    const out = buildShowcase({ title: 'TH17 Anti-Root', saved: SAVED, siteUrl: 'https://s' });
+    // The literal character, not ':100:' -- Discord only expands a shortcode
+    // for text a person types, so a bot sending the code shows the words.
+    expect(out.title).toContain('\u{1F4AF}');
+    // A custom emoji renders only with its id attached.
+    expect(out.title).toContain('<:blue_sword_rank_icon:1378042079879364721>');
+    expect(out.title).toContain('TH17 Anti-Root');
+  });
+
   it('never carries the layout link', () => {
     // The whole delivery design rests on the raw link existing only behind a
     // per-person /r/<token>. A channel is read by every subscriber, so one
