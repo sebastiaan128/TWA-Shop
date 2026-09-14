@@ -16,6 +16,9 @@
  * Everything here is plain data so the no-link guarantee can be tested without
  * a Discord client. The command turns it into an embed and a button.
  */
+const HUNDRED = '\u{1F4AF}';
+const SWORD = '<:blue_sword_rank_icon:1378042079879364721>';
+
 export function buildShowcase({ title, saved, screenshotUrl = null, siteUrl }) {
   const base = String(siteUrl || '').trim().replace(/\/+$/, '');
   // A button with no URL is rejected by Discord, and a button pointing at ""
@@ -28,7 +31,11 @@ export function buildShowcase({ title, saved, screenshotUrl = null, siteUrl }) {
   if (!saved?.id) throw new Error('the site did not return a base id, so there is nothing to link to');
 
   return {
-    title: String(title || 'Base'),
+    // Sent as the literal character and as <:name:id>, because Discord only
+    // turns :shortcode: into an emoji for text a person types -- a bot's
+    // message keeps it as the words. A custom emoji additionally needs its
+    // id, or it renders as plain text in every client.
+    title: `${SWORD} ${String(title || 'Base')} ${HUNDRED}`,
     townHall: `TH${saved?.thLevel ?? '?'}${saved?.mode === 'WB' ? ' (Builder Base)' : ''}`,
     season: saved?.legendMonth || null,
     // Only the copy the site re-hosted. A Discord attachment URL is signed and
