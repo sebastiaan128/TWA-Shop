@@ -99,35 +99,45 @@ async function execute(interaction) {
     // a paid product on the builder's first typo.
     let postNote = '';
     if (interaction.options.getBoolean('post')) {
-      try {
-        const show = buildShowcase({
-          title,
-          saved: res,
-          screenshotUrl: attachment?.url || null,
-          siteUrl: process.env.BASES_API_URL,
-        });
+      // Only legend bases can be opened from a channel button. A war, CWL or
+      // ESL base is owned through the pack it was sold in, not through a
+      // season, so the site has no per-person link to hand out for one -- the
+      // button would post fine and then fail on the first click. Refused here,
+      // where the builder is still looking at the result.
+      if (type !== 'legend') {
+        postNote = '\n\u26A0\uFE0F Not posted: only Legend bases can be shown in a channel.'
+          + ` A ${type.toUpperCase()} base is delivered with its pack.`;
+      } else {
+        try {
+          const show = buildShowcase({
+            title,
+            saved: res,
+            screenshotUrl: attachment?.url || null,
+            siteUrl: process.env.BASES_API_URL,
+          });
 
-        const showEmbed = new EmbedBuilder()
-          .setTitle(show.title)
-          .setColor(0x2a6fae)
-          .addFields({ name: 'Town Hall', value: show.townHall, inline: true });
-        if (show.season) showEmbed.addFields({ name: 'Season', value: show.season, inline: true });
-        if (show.imageUrl) showEmbed.setImage(show.imageUrl);
+          const showEmbed = new EmbedBuilder()
+            .setTitle(show.title)
+            .setColor(0x2a6fae)
+            .addFields({ name: 'Town Hall', value: show.townHall, inline: true });
+          if (show.season) showEmbed.addFields({ name: 'Season', value: show.season, inline: true });
+          if (show.imageUrl) showEmbed.setImage(show.imageUrl);
 
-        const row = new ActionRowBuilder().addComponents(
-          new ButtonBuilder()
-            .setLabel('Download base')
-            .setStyle(ButtonStyle.Link)
-            .setURL(show.openUrl),
-        );
+          const row = new ActionRowBuilder().addComponents(
+            new ButtonBuilder()
+              .setLabel('Download base')
+              .setStyle(ButtonStyle.Link)
+              .setURL(show.openUrl),
+          );
 
-        await interaction.channel.send({ embeds: [showEmbed], components: [row] });
-        postNote = '\nPosted in this channel.';
-      } catch (e) {
-        // The base is already saved at this point. A failed post must read as
-        // exactly that, not as a failed save -- otherwise the builder adds it
-        // a second time and the library ends up with a duplicate.
-        postNote = `\n⚠️ Saved, but could not post it here: ${e.message}`;
+          await interaction.channel.send({ embeds: [showEmbed], components: [row] });
+          postNote = '\nPosted in this channel.';
+        } catch (e) {
+          // The base is already saved at this point. A failed post must read
+          // as exactly that, not as a failed save -- otherwise the builder
+          // adds it a second time and the library ends up with a duplicate.
+          postNote = `\n\u26A0\uFE0F Saved, but could not post it here: ${e.message}`;
+        }
       }
     }
 
