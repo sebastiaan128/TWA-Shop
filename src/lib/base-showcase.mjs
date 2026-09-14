@@ -9,9 +9,9 @@
  * link they all share -- and the download log, the leak signal and the alerts
  * built on top of it are worth nothing the moment that happens.
  *
- * So the showcase shows the base and points at the account. A subscriber who
- * owns the season opens it from there and gets their own link; one who does
- * not owns nothing, and the page says so.
+ * So the button points at /base/<id> instead. That page asks the site for the
+ * signed-in viewer's own token and forwards to it, which is what keeps every
+ * download attributable even though everybody clicks the same button.
  *
  * Everything here is plain data so the no-link guarantee can be tested without
  * a Discord client. The command turns it into an embed and a button.
@@ -22,6 +22,10 @@ export function buildShowcase({ title, saved, screenshotUrl = null, siteUrl }) {
   // would be worse than no post at all -- the builder would believe the base
   // had been announced.
   if (!base) throw new Error('BASES_API_URL is missing, so the showcase has no site url to link to');
+  // Without an id the button would point at /base/, which is a 404 dressed up
+  // as a working post -- worse than refusing, because the builder would
+  // believe the base had been shared.
+  if (!saved?.id) throw new Error('the site did not return a base id, so there is nothing to link to');
 
   return {
     title: String(title || 'Base'),
@@ -31,6 +35,9 @@ export function buildShowcase({ title, saved, screenshotUrl = null, siteUrl }) {
     // expires within about a day, so posting that would look right today and
     // be a broken image by tomorrow.
     imageUrl: saved?.imageHosted && screenshotUrl ? screenshotUrl : null,
-    accountUrl: `${base}/account?tab=legend`,
+    // One URL for everyone in the channel, because a Discord button cannot
+    // carry an identity. The site resolves the viewer's OWN token behind it,
+    // so the download stays attributable to one person.
+    openUrl: `${base}/base/${encodeURIComponent(saved?.id || '')}`,
   };
 }

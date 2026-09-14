@@ -18,14 +18,19 @@ describe('buildShowcase', () => {
     expect(JSON.stringify(out)).not.toContain('link.clashofclans.com');
   });
 
-  it('points at the account, not at a base link', () => {
+  it('points at the base, which resolves the viewer\'s own token', () => {
     const out = buildShowcase({ title: 'x', saved: SAVED, siteUrl: 'https://twabases.com' });
-    expect(out.accountUrl).toBe('https://twabases.com/account?tab=legend');
+    expect(out.openUrl).toBe('https://twabases.com/base/abc123');
   });
 
   it('tolerates a site url with a trailing slash', () => {
     const out = buildShowcase({ title: 'x', saved: SAVED, siteUrl: 'https://twabases.com/' });
-    expect(out.accountUrl).toBe('https://twabases.com/account?tab=legend');
+    expect(out.openUrl).toBe('https://twabases.com/base/abc123');
+  });
+
+  it('refuses without a base id rather than posting a button that 404s', () => {
+    expect(() => buildShowcase({ title: 'x', saved: { ...SAVED, id: null }, siteUrl: 'https://s' }))
+      .toThrow(/base id/i);
   });
 
   it('names the season for a legend base', () => {
