@@ -116,9 +116,9 @@ async function execute(interaction) {
 
         const row = new ActionRowBuilder().addComponents(
           new ButtonBuilder()
-            .setLabel('Open in your account')
+            .setLabel('Download base')
             .setStyle(ButtonStyle.Link)
-            .setURL(show.accountUrl),
+            .setURL(show.openUrl),
         );
 
         await interaction.channel.send({ embeds: [showEmbed], components: [row] });
