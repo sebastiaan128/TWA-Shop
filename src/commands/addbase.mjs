@@ -82,7 +82,7 @@ async function execute(interaction) {
       .setColor(0x2a6fae)
       .addFields(
         { name: 'Title', value: title, inline: true },
-        { name: 'Town Hall', value: `TH${res.thLevel}${res.mode === 'WB' ? ' (Builder Base)' : ''}`, inline: true },
+        { name: 'Town Hall', value: `TH${res.thLevel}${res.mode === 'WB' ? ' (War base)' : ''}`, inline: true },
         { name: 'Type', value: type, inline: true },
       );
     if (attachment?.url) embed.setThumbnail(attachment.url);

@@ -42,7 +42,7 @@ export function buildShowcase({ title, saved, screenshotUrl = null, siteUrl }) {
 
   return {
     title: String(title || 'Base'),
-    townHall: `TH${saved?.thLevel ?? '?'}${saved?.mode === 'WB' ? ' (Builder Base)' : ''}`,
+    townHall: `TH${saved?.thLevel ?? '?'}${saved?.mode === 'WB' ? ' (War base)' : ''}`,
     season: saved?.legendMonth || null,
     // Only the copy the site re-hosted. A Discord attachment URL is signed and
     // expires within about a day, so posting that would look right today and

@@ -99,7 +99,7 @@ async function execute(interaction) {
     .setColor(0x2a6fae)
     .addFields(
       { name: 'Title', value: res.title, inline: true },
-      { name: 'Town Hall', value: `TH${res.thLevel}${res.mode === 'WB' ? ' (Builder Base)' : ''}`, inline: true },
+      { name: 'Town Hall', value: `TH${res.thLevel}${res.mode === 'WB' ? ' (War base)' : ''}`, inline: true },
       { name: 'Type', value: res.type, inline: true },
     );
   if (res.legendMonth) embed.addFields({ name: 'Season', value: res.legendMonth, inline: true });
