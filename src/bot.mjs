@@ -6,6 +6,7 @@ import { generateFromMessages } from 'discord-html-transcripts';
 import { registerCommandsMap } from './commands/index.mjs';
 import { handleCloseTicket, handleDeleteTicket } from './tickets.mjs';
 import { startYesterdayEodScheduler } from './lib/daily-eod-post.mjs';
+import { isEditBaseId, handleEditButton, handleEditModal } from './lib/base-edit-button.mjs';
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
 dotenv.config({ path: path.resolve(__dirname, '../.env') });
@@ -255,6 +256,8 @@ client.on(Events.InteractionCreate, async (interaction) => {
         await handleCloseTicket(interaction, { staffOnly: true });
       } else if (interaction.customId === 'delete_ticket') {
         await handleDeleteTicket(interaction, postTranscript);
+      } else if (isEditBaseId(interaction.customId)) {
+        await handleEditButton(interaction);
       }
     } catch (err) {
       console.error('Fout bij button interactie', err);
@@ -267,6 +270,19 @@ client.on(Events.InteractionCreate, async (interaction) => {
         await interaction.followUp({ content: msg, flags: MessageFlags.Ephemeral }).catch(() => {});
       }
     }
+    return;
+  }
+
+  // A modal submission is its own interaction type too, and carries the base
+  // id in its custom id -- it arrives with no memory of the message it was
+  // opened from.
+  if (interaction.isModalSubmit() && isEditBaseId(interaction.customId)) {
+    await handleEditModal(interaction).catch(async (err) => {
+      console.error('[editbase modal]', err?.message || err);
+      const msg = `Er ging iets mis: ${err?.message || err}`;
+      if (interaction.deferred) await interaction.editReply({ content: msg }).catch(() => {});
+      else await interaction.reply({ content: msg, flags: MessageFlags.Ephemeral }).catch(() => {});
+    });
     return;
   }
 
