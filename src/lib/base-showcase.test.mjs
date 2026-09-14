@@ -48,9 +48,17 @@ describe('buildShowcase', () => {
     expect(out.season).toBe(null);
   });
 
-  it('labels a Builder Base', () => {
+  it('labels a war layout as a war base, not a builder base', () => {
+    // WB is the WAR layout. A builder base has a Builder Hall rather than a
+    // Town Hall, so it cannot appear behind the TH prefix these ids require --
+    // the old "Builder Base" label was unreachable as well as wrong.
     const out = buildShowcase({ title: 'x', saved: { ...SAVED, mode: 'WB' }, siteUrl: 'https://s' });
-    expect(out.townHall).toBe('TH17 (Builder Base)');
+    expect(out.townHall).toBe('TH17 (War base)');
+  });
+
+  it('leaves a home village layout unannotated', () => {
+    const out = buildShowcase({ title: 'x', saved: { ...SAVED, mode: 'HV' }, siteUrl: 'https://s' });
+    expect(out.townHall).toBe('TH17');
   });
 
   it('uses the screenshot as the image when one was hosted', () => {
