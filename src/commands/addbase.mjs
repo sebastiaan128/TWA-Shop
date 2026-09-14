@@ -4,7 +4,7 @@ import {
 } from 'discord.js';
 import { requireStaff } from '../lib/staff-gate.mjs';
 import { saveBase } from '../lib/bases-api.mjs';
-import { buildShowcase } from '../lib/base-showcase.mjs';
+import { buildShowcase, SHOWCASE_REACTIONS } from '../lib/base-showcase.mjs';
 
 /**
  * /addbase — quick capture for a base you just built.
@@ -130,8 +130,14 @@ async function execute(interaction) {
               .setURL(show.openUrl),
           );
 
-          await interaction.channel.send({ embeds: [showEmbed], components: [row] });
+          const posted = await interaction.channel.send({ embeds: [showEmbed], components: [row] });
           postNote = '\nPosted in this channel.';
+
+          // Decoration, so a missing Add Reactions permission must not turn a
+          // successful post into an error the builder then tries to fix.
+          for (const emoji of SHOWCASE_REACTIONS) {
+            await posted.react(emoji).catch(() => {});
+          }
         } catch (e) {
           // The base is already saved at this point. A failed post must read
           // as exactly that, not as a failed save -- otherwise the builder

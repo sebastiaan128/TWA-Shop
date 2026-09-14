@@ -1,17 +1,12 @@
 import { describe, it, expect } from 'vitest';
-import { buildShowcase } from './base-showcase.mjs';
+import { buildShowcase, SHOWCASE_REACTIONS } from './base-showcase.mjs';
 
 const SAVED = { id: 'abc123', thLevel: 17, mode: 'HV', legendMonth: 'September 2026', imageHosted: true };
 
 describe('buildShowcase', () => {
-  it('decorates the title with both icons', () => {
+  it('leaves the title alone -- the icons are reactions, not decoration', () => {
     const out = buildShowcase({ title: 'TH17 Anti-Root', saved: SAVED, siteUrl: 'https://s' });
-    // The literal character, not ':100:' -- Discord only expands a shortcode
-    // for text a person types, so a bot sending the code shows the words.
-    expect(out.title).toContain('\u{1F4AF}');
-    // A custom emoji renders only with its id attached.
-    expect(out.title).toContain('<:blue_sword_rank_icon:1378042079879364721>');
-    expect(out.title).toContain('TH17 Anti-Root');
+    expect(out.title).toBe('TH17 Anti-Root');
   });
 
   it('never carries the layout link', () => {
@@ -75,5 +70,17 @@ describe('buildShowcase', () => {
 
   it('refuses to build without a site url rather than posting a broken button', () => {
     expect(() => buildShowcase({ title: 'x', saved: SAVED, siteUrl: '' })).toThrow(/site url/i);
+  });
+});
+
+describe('SHOWCASE_REACTIONS', () => {
+  it('sends the literal character, not the :100: shortcode', () => {
+    // A bot posting ':100:' posts the words; only a person's typing expands.
+    expect(SHOWCASE_REACTIONS).toContain('\u{1F4AF}');
+    expect(SHOWCASE_REACTIONS.some((e) => e.includes(':100:'))).toBe(false);
+  });
+
+  it('carries the custom emoji id, since the name alone resolves to nothing', () => {
+    expect(SHOWCASE_REACTIONS).toContain('blue_sword_rank_icon:1378042079879364721');
   });
 });
