@@ -5,6 +5,7 @@ import {
 import { requireStaff } from '../lib/staff-gate.mjs';
 import { saveBase, updateBase } from '../lib/bases-api.mjs';
 import { buildShowcase, SHOWCASE_REACTIONS } from '../lib/base-showcase.mjs';
+import { editButtonRow } from '../lib/base-edit-button.mjs';
 
 /**
  * /addbase — quick capture for a base you just built.
@@ -130,7 +131,10 @@ async function execute(interaction) {
               .setURL(show.openUrl),
           );
 
-          const posted = await interaction.channel.send({ embeds: [showEmbed], components: [row] });
+          const posted = await interaction.channel.send({
+            embeds: [showEmbed],
+            components: [row, editButtonRow(res.id)],
+          });
           postNote = '\nPosted in this channel.';
 
           // Remembered so /editbase can correct this message in place. Without

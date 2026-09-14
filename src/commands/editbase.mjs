@@ -5,6 +5,7 @@ import {
 import { requireStaff } from '../lib/staff-gate.mjs';
 import { listBases, updateBase } from '../lib/bases-api.mjs';
 import { buildShowcase } from '../lib/base-showcase.mjs';
+import { editButtonRow } from '../lib/base-edit-button.mjs';
 
 /**
  * /editbase — fix a base you already added.
@@ -136,7 +137,7 @@ async function execute(interaction) {
           .setURL(show.openUrl),
       );
 
-      await message.edit({ embeds: [showEmbed], components: [row] });
+      await message.edit({ embeds: [showEmbed], components: [row, editButtonRow(id)] });
       postNote = '\nThe post in the channel was updated too.';
     } catch (e) {
       // The library is already correct. Say which half failed, or the builder
