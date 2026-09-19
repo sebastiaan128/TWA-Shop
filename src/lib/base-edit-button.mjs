@@ -4,6 +4,7 @@ import {
 } from 'discord.js';
 import { updateBase } from './bases-api.mjs';
 import { buildShowcase } from './base-showcase.mjs';
+import { openButtonRow } from './base-open-button.mjs';
 
 /**
  * The Edit button under a posted base.
@@ -144,16 +145,13 @@ export async function handleEditModal(interaction) {
       ...(show.imageUrl ? { image: { url: show.imageUrl } } : {}),
     };
 
-    // Rebuilt rather than patched: the download button's URL carries the base
-    // id, and dropping the components on an edit would strip it.
+    // Rebuilt rather than patched: the download button carries the base id,
+    // and dropping the components on an edit would strip it. Rebuilding also
+    // upgrades a post from before the button became a bot button, so an old
+    // post starts working for the Vatic role the first time it is edited.
     await interaction.message.edit({
       embeds: [embed],
-      components: [
-        new ActionRowBuilder().addComponents(
-          new ButtonBuilder().setLabel('Download base').setStyle(ButtonStyle.Link).setURL(show.openUrl),
-        ),
-        editButtonRow(baseId),
-      ],
+      components: [openButtonRow(baseId), editButtonRow(baseId)],
     });
   } catch (e) {
     // The library is already correct. Saying "failed" here would send the

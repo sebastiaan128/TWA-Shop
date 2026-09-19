@@ -1,11 +1,9 @@
-import {
-  SlashCommandBuilder, EmbedBuilder, MessageFlags,
-  ActionRowBuilder, ButtonBuilder, ButtonStyle,
-} from 'discord.js';
+import { SlashCommandBuilder, EmbedBuilder, MessageFlags } from 'discord.js';
 import { requireStaff } from '../lib/staff-gate.mjs';
 import { saveBase, updateBase } from '../lib/bases-api.mjs';
 import { buildShowcase, SHOWCASE_REACTIONS } from '../lib/base-showcase.mjs';
 import { editButtonRow } from '../lib/base-edit-button.mjs';
+import { openButtonRow } from '../lib/base-open-button.mjs';
 
 /**
  * /addbase — quick capture for a base you just built.
@@ -124,16 +122,12 @@ async function execute(interaction) {
           if (show.season) showEmbed.addFields({ name: 'Season', value: show.season, inline: true });
           if (show.imageUrl) showEmbed.setImage(show.imageUrl);
 
-          const row = new ActionRowBuilder().addComponents(
-            new ButtonBuilder()
-              .setLabel('Download base')
-              .setStyle(ButtonStyle.Link)
-              .setURL(show.openUrl),
-          );
-
+          // A bot button rather than a link straight to the site: the bot is
+          // the only place that can see who clicked, which is what lets the
+          // Vatic role get the layout link without a site account.
           const posted = await interaction.channel.send({
             embeds: [showEmbed],
-            components: [row, editButtonRow(res.id)],
+            components: [openButtonRow(res.id), editButtonRow(res.id)],
           });
           postNote = '\nPosted in this channel.';
 
