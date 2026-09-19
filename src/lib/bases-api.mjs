@@ -51,3 +51,7 @@ export const listBases = (type, q) =>
 // Partial: only the fields present are touched, so a builder fixing a title
 // cannot blank the notes they are not editing.
 export const updateBase = (patch) => call('/api/bot/bases/update', { body: patch });
+// The raw layout link, for the Vatic role only. Gated in the bot, because the
+// bot is the only thing that can see a clicker's Discord roles.
+export const getBaseLink = (id) =>
+  call(`/api/bot/bases/link?id=${encodeURIComponent(id)}`, { method: 'GET' });

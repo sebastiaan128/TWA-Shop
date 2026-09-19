@@ -7,6 +7,7 @@ import { registerCommandsMap } from './commands/index.mjs';
 import { handleCloseTicket, handleDeleteTicket } from './tickets.mjs';
 import { startYesterdayEodScheduler } from './lib/daily-eod-post.mjs';
 import { isEditBaseId, handleEditButton, handleEditModal } from './lib/base-edit-button.mjs';
+import { isOpenBaseId, handleOpenButton } from './lib/base-open-button.mjs';
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
 dotenv.config({ path: path.resolve(__dirname, '../.env') });
@@ -258,6 +259,8 @@ client.on(Events.InteractionCreate, async (interaction) => {
         await handleDeleteTicket(interaction, postTranscript);
       } else if (isEditBaseId(interaction.customId)) {
         await handleEditButton(interaction);
+      } else if (isOpenBaseId(interaction.customId)) {
+        await handleOpenButton(interaction);
       }
     } catch (err) {
       console.error('Fout bij button interactie', err);
