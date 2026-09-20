@@ -1,11 +1,9 @@
-import {
-  SlashCommandBuilder, EmbedBuilder, MessageFlags,
-  ActionRowBuilder, ButtonBuilder, ButtonStyle,
-} from 'discord.js';
+import { SlashCommandBuilder, EmbedBuilder, MessageFlags } from 'discord.js';
 import { requireStaff } from '../lib/staff-gate.mjs';
 import { listBases, updateBase } from '../lib/bases-api.mjs';
 import { buildShowcase } from '../lib/base-showcase.mjs';
 import { editButtonRow } from '../lib/base-edit-button.mjs';
+import { openButtonRow } from '../lib/base-open-button.mjs';
 
 /**
  * /editbase — fix a base you already added.
@@ -130,14 +128,10 @@ async function execute(interaction) {
       if (show.season) showEmbed.addFields({ name: 'Season', value: show.season, inline: true });
       if (show.imageUrl) showEmbed.setImage(show.imageUrl);
 
-      const row = new ActionRowBuilder().addComponents(
-        new ButtonBuilder()
-          .setLabel('Download base')
-          .setStyle(ButtonStyle.Link)
-          .setURL(show.openUrl),
-      );
-
-      await message.edit({ embeds: [showEmbed], components: [row, editButtonRow(id)] });
+      await message.edit({
+        embeds: [showEmbed],
+        components: [openButtonRow(id), editButtonRow(id)],
+      });
       postNote = '\nThe post in the channel was updated too.';
     } catch (e) {
       // The library is already correct. Say which half failed, or the builder
