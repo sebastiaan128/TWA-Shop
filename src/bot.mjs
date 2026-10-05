@@ -2,7 +2,7 @@ import path from 'node:path';
 import { fileURLToPath } from 'node:url';
 import dotenv from 'dotenv';
 import { Client, GatewayIntentBits, Partials, Events, REST, Routes, EmbedBuilder, MessageFlags, AttachmentBuilder } from 'discord.js';
-import { generateFromMessages } from 'discord-html-transcripts';
+import { buildTranscriptHtml } from './lib/ticket-transcript.mjs';
 import { registerCommandsMap } from './commands/index.mjs';
 import { handleCloseTicket, handleDeleteTicket } from './tickets.mjs';
 import { startYesterdayEodScheduler } from './lib/daily-eod-post.mjs';
@@ -27,102 +27,18 @@ function panelFromChannelName(name) {
   return 'General';
 }
 
-// Plain-text transcript, no React, never throws. Used as a last-resort
-// fallback when discord-html-transcripts cannot render the HTML at all.
-function buildPlainTextTranscript(all, channel) {
-  const lines = [
-    `Transcript, ${channel.name}`,
-    `Exported ${all.length} message(s), ${new Date().toISOString()}`,
-    '(HTML transcript could not be rendered; plain-text fallback)',
-    '',
-  ];
-  for (const m of all) {
-    const ts = m.createdAt ? m.createdAt.toISOString().replace('T', ' ').slice(0, 19) : '????';
-    const author = m.author?.tag || m.author?.username || 'unknown';
-    let content = m.content || '';
-    if (m.embeds?.length) content += ` [${m.embeds.length} embed(s)]`;
-    if (m.attachments?.size) {
-      content += ' ' + [...m.attachments.values()].map((a) => `[file: ${a.url}]`).join(' ');
-    }
-    if (m.stickers?.size) content += ` [${m.stickers.size} sticker(s)]`;
-    if (m.poll) content += ' [poll]';
-    lines.push(`[${ts}] ${author}: ${content}`.trimEnd());
-  }
-  const buf = Buffer.from(lines.join('\n'), 'utf8');
-  return new AttachmentBuilder(buf, {
-    name: `transcript-${channel.name.replace(/[^\w-]/g, '_')}.txt`,
-  });
-}
-
-// Render an HTML transcript that survives messages discord-html-transcripts
-// cannot handle (polls, forwarded messages, Components V2, …). Layers:
-//  1. render everything;
-//  2. drop messages that fail individually, plus messages replying to them;
-//  3. leave-one-out to catch a remaining context-dependent culprit;
-//  4. guaranteed plain-text fallback.
-async function renderTranscript(all, channel, opts) {
-  try {
-    return await generateFromMessages(all, channel, opts);
-  } catch (err) {
-    console.error('Transcript: full render failed:', err?.message || err);
-  }
-
-  // Messages that cannot render on their own.
-  const badIds = new Set();
-  for (const m of all) {
-    try {
-      await generateFromMessages([m], channel, opts);
-    } catch {
-      badIds.add(m.id);
-    }
-  }
-  // A reply renders a preview of its target, if the target is bad, the reply
-  // breaks too. Propagate transitively up the reply chains.
-  for (let grew = true; grew;) {
-    grew = false;
-    for (const m of all) {
-      const ref = m.reference?.messageId;
-      if (ref && badIds.has(ref) && !badIds.has(m.id)) {
-        badIds.add(m.id);
-        grew = true;
-      }
-    }
-  }
-
-  const good = all.filter((m) => !badIds.has(m.id));
-  try {
-    const att = await generateFromMessages(good, channel, opts);
-    console.error(`Transcript: rendered with ${badIds.size} message(s) skipped:`,
-      [...badIds].join(', '));
-    return att;
-  } catch (err) {
-    console.error('Transcript: render after isolation still failed:', err?.message || err);
-  }
-
-  // One more context-dependent culprit not caught above.
-  for (const m of good) {
-    try {
-      const att = await generateFromMessages(good.filter((x) => x.id !== m.id), channel, opts);
-      console.error(`Transcript: rendered after also dropping ${m.id}`);
-      return att;
-    } catch { /* keep trying */ }
-  }
-
-  console.error('Transcript: HTML render impossible, using plain-text fallback');
-  return buildPlainTextTranscript(all, channel);
-}
-
 async function postTranscript(channel) {
-  // Fetch all messages (paginated)
+  // Raw REST JSON rather than discord.js Message objects, so the bot renders
+  // with the same builder as the admin panel. Paginated, newest first.
   const all = [];
   let before;
   while (true) {
-    const batch = await channel.messages.fetch({ limit: 100, ...(before ? { before } : {}) });
-    if (!batch.size) break;
-    const arr = [...batch.values()];
-    all.push(...arr);
-    before = arr.at(-1).id;
-    if (batch.size < 100) break;
+    const query = new URLSearchParams({ limit: '100', ...(before ? { before } : {}) });
+    const batch = await channel.client.rest.get(Routes.channelMessages(channel.id), { query });
+    if (!batch.length) break;
+    all.push(...batch);
+    before = batch.at(-1).id;
+    if (batch.length < 100) break;
   }
   all.reverse(); // chronological
 
@@ -164,22 +80,16 @@ async function postTranscript(channel) {
     : 'Unknown';
 
   const usersValue = sorted.map(({ user, count }) => {
-    const display = user.globalName || user.username;
+    const display = user.global_name || user.username;
     const tag = user.discriminator && user.discriminator !== '0'
       ? `${user.username}#${user.discriminator}`
       : `${user.username}#0`;
     return `${count} - @${display} - ${tag}`;
   }).join('\n') || 'Geen berichten';
 
-  // Generate the transcript. renderTranscript() degrades gracefully when
-  // discord-html-transcripts cannot render some/all messages.
-  const transcriptOpts = {
-    filename: `transcript-${channel.name.replace(/[^\w-]/g, '_')}.html`,
-    saveImages: false,
-    poweredBy: false,
-    footerText: 'Exported {number} message{s}',
-  };
-  const htmlAttachment = await renderTranscript(all, channel, transcriptOpts);
+  const htmlAttachment = new AttachmentBuilder(Buffer.from(buildTranscriptHtml(all, channel), 'utf8'), {
+    name: `transcript-${channel.name.replace(/[^\w-]/g, '_')}.html`,
+  });
 
   const transcriptChannel = await channel.client.channels.fetch(TRANSCRIPT_CHANNEL_ID);
 
