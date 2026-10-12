@@ -8,7 +8,8 @@ import { openButtonRow } from '../lib/base-open-button.mjs';
 /**
  * /addbase — quick capture for a base you just built.
  *
- * Deliberately minimal: title, type, link, screenshot. Tags, notes, edits and
+ * Deliberately minimal: title, type, link, screenshot, and optionally the
+ * Clan Castle (typed freely; the site turns it into one fixed format). Tags, notes, edits and
  * archiving all live on the site, where a form is far better than a slash
  * command. This exists for the moment right after you finish a base, when
  * switching to a browser is the thing that stops it getting logged at all.
@@ -35,6 +36,8 @@ const data = new SlashCommandBuilder()
   .addAttachmentOption((o) =>
     o.setName('screenshot').setDescription('Screenshot of the base').setRequired(false))
   .addStringOption((o) =>
+    o.setName('cc').setDescription('Clan Castle, e.g. 2 super minion, ice golem, poison').setRequired(false).setMaxLength(500))
+  .addStringOption((o) =>
     o.setName('notes').setDescription('Shown to buyers in the pack PDF').setRequired(false))
   .addStringOption((o) =>
     o.setName('tags').setDescription('Comma separated, e.g. anti-3, ring').setRequired(false))
@@ -53,6 +56,7 @@ async function execute(interaction) {
   const type = interaction.options.getString('type', true);
   const link = interaction.options.getString('link', true);
   const notes = interaction.options.getString('notes') || '';
+  const cc = interaction.options.getString('cc') || '';
   const tagsRaw = interaction.options.getString('tags') || '';
   const season = interaction.options.getString('season') || null;
   const attachment = interaction.options.getAttachment('screenshot');
@@ -71,6 +75,7 @@ async function execute(interaction) {
       // to store.
       screenshotUrl: attachment?.url || null,
       notes,
+      cc,
       tags: tagsRaw.split(',').map((t) => t.trim()).filter(Boolean),
       legendMonth: season,
       channelId: interaction.channelId,
@@ -84,6 +89,7 @@ async function execute(interaction) {
         { name: 'Town Hall', value: `TH${res.thLevel}${res.mode === 'WB' ? ' (War base)' : ''}`, inline: true },
         { name: 'Type', value: type, inline: true },
       );
+    if (res.cc) embed.addFields({ name: 'Clan Castle', value: res.cc.split(' · ').join('\n') });
     if (attachment?.url) embed.setThumbnail(attachment.url);
 
     const warn = attachment && !res.imageHosted
@@ -121,6 +127,7 @@ async function execute(interaction) {
             .setColor(0x2a6fae)
             .addFields({ name: 'Town Hall', value: show.townHall, inline: true });
           if (show.season) showEmbed.addFields({ name: 'Season', value: show.season, inline: true });
+          if (show.clanCastle) showEmbed.addFields({ name: 'Clan Castle', value: show.clanCastle });
           if (show.imageUrl) showEmbed.setImage(show.imageUrl);
 
           // A bot button rather than a link straight to the site: the bot is

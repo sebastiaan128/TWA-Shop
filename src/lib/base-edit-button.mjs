@@ -87,10 +87,19 @@ export async function handleEditButton(interaction) {
     .setStyle(TextInputStyle.Short).setRequired(false)
     .setValue(current?.fields?.find((f) => f.name === 'Season')?.value || '');
 
+  // Prefilled from the post: the site reads its own display format back, so a
+  // builder fixing one count does not retype the whole Clan Castle.
+  const cc = new TextInputBuilder()
+    .setCustomId('cc').setLabel('Clan Castle ("-" clears it)')
+    .setStyle(TextInputStyle.Paragraph).setRequired(false).setMaxLength(500)
+    .setPlaceholder('2 super minion, ice golem, poison')
+    .setValue(current?.fields?.find((f) => f.name === 'Clan Castle')?.value?.slice(0, 500) || '');
+
   modal.addComponents(
     new ActionRowBuilder().addComponents(title),
     new ActionRowBuilder().addComponents(link),
     new ActionRowBuilder().addComponents(season),
+    new ActionRowBuilder().addComponents(cc),
   );
 
   return interaction.showModal(modal);
@@ -110,11 +119,13 @@ export async function handleEditModal(interaction) {
   const title = interaction.fields.getTextInputValue('title').trim();
   const link = interaction.fields.getTextInputValue('link').trim();
   const season = interaction.fields.getTextInputValue('season').trim();
+  const cc = interaction.fields.getTextInputValue('cc').trim();
 
   const patch = { id: baseId };
   if (title) patch.title = title;
   if (link) patch.layoutLink = link;
   if (season) patch.legendMonth = season;
+  if (cc) patch.cc = cc;
 
   if (Object.keys(patch).length === 1) {
     return interaction.editReply('Nothing changed.');
@@ -141,6 +152,7 @@ export async function handleEditModal(interaction) {
       fields: [
         { name: 'Town Hall', value: show.townHall, inline: true },
         ...(show.season ? [{ name: 'Season', value: show.season, inline: true }] : []),
+        ...(show.clanCastle ? [{ name: 'Clan Castle', value: show.clanCastle }] : []),
       ],
       ...(show.imageUrl ? { image: { url: show.imageUrl } } : {}),
     };

@@ -92,3 +92,14 @@ describe('SHOWCASE_REACTIONS', () => {
     expect(SHOWCASE_REACTIONS).toContain('blue_sword_rank_icon:1378042079879364721');
   });
 });
+
+describe('buildShowcase: Clan Castle', () => {
+  const site = 'https://twabases.com';
+  it('puts each kind of the site text on its own line', () => {
+    const out = buildShowcase({ title: 'T', saved: { id: 'b1', thLevel: 17, cc: 'Troops: 2× Super Minion · Spells: 1× Poison' }, siteUrl: site });
+    expect(out.clanCastle).toBe('Troops: 2× Super Minion\nSpells: 1× Poison');
+  });
+  it('is null when no CC was set', () => {
+    expect(buildShowcase({ title: 'T', saved: { id: 'b1', thLevel: 17, cc: '' }, siteUrl: site }).clanCastle).toBe(null);
+  });
+});
