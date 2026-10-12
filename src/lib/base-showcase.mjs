@@ -44,6 +44,9 @@ export function buildShowcase({ title, saved, screenshotUrl = null, siteUrl }) {
     title: String(title || 'Base'),
     townHall: `TH${saved?.thLevel ?? '?'}${saved?.mode === 'WB' ? ' (War base)' : ''}`,
     season: saved?.legendMonth || null,
+    // The site's canonical text, one kind per line, the way the in-game CC
+    // screen groups it. Never the builder's raw input: the site normalises it.
+    clanCastle: saved?.cc ? String(saved.cc).split(' · ').join('\n') : null,
     // Only the copy the site re-hosted. A Discord attachment URL is signed and
     // expires within about a day, so posting that would look right today and
     // be a broken image by tomorrow.

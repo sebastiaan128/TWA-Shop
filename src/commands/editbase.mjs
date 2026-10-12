@@ -35,6 +35,8 @@ const data = new SlashCommandBuilder()
   .addStringOption((o) =>
     o.setName('season').setDescription('Legend season, e.g. "September 2026"').setRequired(false))
   .addStringOption((o) =>
+    o.setName('cc').setDescription('Replace the Clan Castle, e.g. 2 super minion, poison. "-" clears it').setRequired(false).setMaxLength(500))
+  .addStringOption((o) =>
     o.setName('notes').setDescription('Replace the notes').setRequired(false))
   .addStringOption((o) =>
     o.setName('tags').setDescription('Replace the tags, comma separated').setRequired(false));
@@ -66,6 +68,7 @@ async function execute(interaction) {
   const link = interaction.options.getString('link');
   const season = interaction.options.getString('season');
   const notes = interaction.options.getString('notes');
+  const cc = interaction.options.getString('cc');
   const tagsRaw = interaction.options.getString('tags');
   const attachment = interaction.options.getAttachment('screenshot');
 
@@ -78,6 +81,7 @@ async function execute(interaction) {
   if (link !== null) patch.layoutLink = link;
   if (season !== null) patch.legendMonth = season;
   if (notes !== null) patch.notes = notes;
+  if (cc !== null) patch.cc = cc;
   if (tagsRaw !== null) patch.tags = tagsRaw.split(',').map((t) => t.trim()).filter(Boolean);
   if (attachment) patch.screenshotUrl = attachment.url;
 
@@ -101,6 +105,7 @@ async function execute(interaction) {
       { name: 'Type', value: res.type, inline: true },
     );
   if (res.legendMonth) embed.addFields({ name: 'Season', value: res.legendMonth, inline: true });
+  if (res.cc) embed.addFields({ name: 'Clan Castle', value: res.cc.split(' · ').join('\n') });
 
   const warn = attachment && res.imageHosted === false
     ? '\n⚠️ The new screenshot could not be saved. The old one is still in place.'
@@ -126,6 +131,7 @@ async function execute(interaction) {
         .setColor(0x2a6fae)
         .addFields({ name: 'Town Hall', value: show.townHall, inline: true });
       if (show.season) showEmbed.addFields({ name: 'Season', value: show.season, inline: true });
+      if (show.clanCastle) showEmbed.addFields({ name: 'Clan Castle', value: show.clanCastle });
       if (show.imageUrl) showEmbed.setImage(show.imageUrl);
 
       await message.edit({
