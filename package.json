@@ -9,6 +9,7 @@
     "start": "node src/bot.mjs",
     "dev": "node --watch src/bot.mjs",
     "test": "vitest run",
+    "lint": "eslint .",
     "deploy:commands": "node src/deploy-commands.mjs",
     "invite:url": "node src/create-invite-url.mjs",
     "postinstall": "node scripts/sync-deploy.mjs"
@@ -22,6 +23,9 @@
     "dotenv": "^18.0.6"
   },
   "devDependencies": {
+    "@eslint/js": "^9.39.5",
+    "eslint": "^9.39.5",
+    "globals": "^16.5.0",
     "vitest": "^5.0.3"
   }
 }
