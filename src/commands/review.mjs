@@ -1,26 +1,22 @@
 import { SlashCommandBuilder, EmbedBuilder, MessageFlags } from 'discord.js';
 
+/**
+ * /review: a rating and a sentence. Name defaults to your Discord name and the
+ * clan tag is optional (it only adds your clan badge). Every rating is sent
+ * to the site; the team picks which reviews are shown there, so nothing is
+ * refused here for being under 5 stars or not in English.
+ */
 const data = new SlashCommandBuilder()
   .setName('review')
-  .setDescription('Submit a review for your purchase (5-star English reviews are shown on the site after review)')
-  .addStringOption(opt => opt.setName('name').setDescription('Your display name for the review').setRequired(true))
-  .addStringOption(opt => opt.setName('clantag').setDescription('Clash of Clans clan tag (e.g. #AB12CD)').setRequired(true))
-  .addIntegerOption(opt => opt.setName('stars').setDescription('Number of stars (1-5)').setMinValue(1).setMaxValue(5).setRequired(true))
-  .addStringOption(opt => opt.setName('message').setDescription('Your review (English only)').setRequired(true));
+  .setDescription('Tell us how your bases held up')
+  .addIntegerOption(opt => opt.setName('stars').setDescription('1 to 5 stars').setMinValue(1).setMaxValue(5).setRequired(true))
+  .addStringOption(opt => opt.setName('message').setDescription('A line or two about the bases').setMinLength(10).setMaxLength(1000).setRequired(true))
+  .addStringOption(opt => opt.setName('name').setDescription('Name shown with your review (default: your Discord name)').setMaxLength(40).setRequired(false))
+  .addStringOption(opt => opt.setName('clantag').setDescription('Optional: your clan tag, adds your clan badge (e.g. #2PQ8RYLV)').setRequired(false));
 
 function encodeClanTag(tag) {
   const t = tag.trim();
   return encodeURIComponent(t.startsWith('#') ? t : `#${t}`);
-}
-
-function englishCheck(text) {
-  const s = (text || '').toString();
-  const letters = s.match(/[A-Za-z]/g)?.length || 0;
-  const total = s.length || 1;
-  const ratio = letters / total;
-  const common = /( the | and | you | your | i | we | is | are | with | for | best | great | amazing | love )/i.test(` ${s} `);
-  const isEnglishEnough = ratio >= 0.5 && common;
-  return { ratio, common, isEnglishEnough };
 }
 
 function withTimeout(ms) {
@@ -68,84 +64,59 @@ async function sendToSite(payload) {
 
 async function execute(interaction) {
   await interaction.deferReply({ flags: MessageFlags.Ephemeral });
-  const name = interaction.options.getString('name', true);
-  const clantag = interaction.options.getString('clantag', true);
+
   const stars = interaction.options.getInteger('stars', true);
   const message = interaction.options.getString('message', true);
+  const name = interaction.options.getString('name')
+    || interaction.member?.displayName || interaction.user.globalName || interaction.user.username;
+  const clantag = (interaction.options.getString('clantag') || '').trim();
 
+  // The clan is looked up only for its badge. Not found, or the Clash API
+  // being unavailable, never costs the customer their review.
+  let clan = null;
   const cocToken = process.env.COC_API_TOKEN || process.env.COC_TOKEN;
-  if (!cocToken) {
-    return interaction.editReply('Missing something ask admin.');
-  }
-
-  let clan;
-  let fallbackNote = '';
-  try {
-    clan = await fetchClan(clantag, cocToken);
-  } catch (e) {
-    console.error('COC fetch error', e);
-    if (e?.status === 404) {
-      return interaction.editReply('Clan not found. Check the tag (include #).');
+  if (clantag && cocToken) {
+    try {
+      clan = await fetchClan(clantag, cocToken);
+    } catch (e) {
+      if (e?.status !== 404) console.error('[review] clan lookup failed', e?.status || e?.message);
     }
-    clan = { name: null, tag: clantag, badgeUrls: {} };
-    if (e?.status === 403) fallbackNote = ' (Clash API blocked: update allowed IP in developer portal)';
-    else if (e?.status === 429) fallbackNote = ' (Clash API rate limited: submitted without logo)';
-    else if (String(e?.message || '').includes('timeout')) fallbackNote = ' (Clash API timeout: submitted without logo)';
-    else fallbackNote = ' (Clash API issue: submitted without logo)';
   }
 
-  const englishInfo = englishCheck(message);
-  const english = englishInfo.isEnglishEnough;
-  const eligible = english && stars === 5;
+  const siteRes = await sendToSite({
+    reviewerName: name,
+    clanTag: clantag || null,
+    clanName: clan?.name || null,
+    clanBadgeUrl: clan?.badgeUrls?.medium || clan?.badgeUrls?.small || null,
+    stars,
+    message,
+    source: 'discord',
+    discordUserId: interaction.user.id,
+  });
+
+  if (!siteRes?.ok) {
+    // 400s carry a message written for the customer (bad clan tag, too
+    // short); anything else is ours to fix.
+    const reply = siteRes?.status === 429
+      ? 'You already left a review today. Thanks!'
+      : siteRes?.status === 400 && siteRes?.data?.error
+        ? siteRes.data.error
+        : 'Something went wrong sending your review. Please try again in a moment.';
+    return interaction.editReply(reply);
+  }
 
   const embed = new EmbedBuilder()
-    .setTitle('New Review')
+    .setTitle('Thanks for your review!')
     .addFields(
-      { name: 'Name', value: name, inline: true },
-      { name: 'Stars', value: `${stars} / 5`, inline: true },
-      { name: 'Clan', value: `${clan?.name || 'Unknown'} (${clan?.tag || clantag})` },
-      { name: 'Message', value: message.slice(0, 1000) }
+      { name: 'Rating', value: `${'\u2B50'.repeat(stars)} (${stars}/5)`, inline: true },
+      { name: 'Name', value: name.slice(0, 100), inline: true },
+      ...(clan?.name ? [{ name: 'Clan', value: `${clan.name} (${clan.tag})`, inline: true }] : []),
+      { name: 'Review', value: message.slice(0, 1000) },
     )
-    .setColor(eligible ? 0x22c55e : 0xf59e0b);
+    .setColor(0x2a6fae);
   if (clan?.badgeUrls?.medium) embed.setThumbnail(clan.badgeUrls.medium);
 
-  let siteRes = null;
-  if (eligible) {
-    siteRes = await sendToSite({
-      reviewerName: name,
-      clanTag: clan?.tag || clantag,
-      clanName: clan?.name || null,
-      clanBadgeUrl: clan?.badgeUrls?.medium || clan?.badgeUrls?.small || null,
-      stars,
-      message,
-      source: 'discord',
-      discordUserId: interaction.user.id,
-    });
-  }
-
-  let siteMsg;
-  if (eligible) {
-    siteMsg = siteRes?.ok
-      ? 'Thanks! Your review has been submitted and will appear on the site after a quick check by our team.'
-      : siteRes?.status === 429
-        ? 'You already submitted a review today. Thanks!'
-        : `Your review qualifies, but submitting to the site failed (${siteRes?.status || 'n/a'}).`;
-  } else {
-    const needsStars = stars !== 5;
-    const needsEnglish = !english;
-    if (needsStars && needsEnglish) {
-      siteMsg = 'Your review can be published once you set 5 stars and write a clear English sentence. Please try again.';
-    } else if (needsStars) {
-      siteMsg = 'Set 5 stars to have your review published.';
-    } else if (needsEnglish) {
-      siteMsg = 'Please write a clear English sentence (avoid one-word or emoji-only reviews), then try again.';
-    } else {
-      siteMsg = 'Please adjust your review and try again.';
-    }
-  }
-  if (fallbackNote && siteRes?.ok) siteMsg += fallbackNote;
-
-  await interaction.editReply({ content: siteMsg, embeds: [embed] });
+  return interaction.editReply({ content: 'Your review is in. The team reads every one, and the best ones go on the site.', embeds: [embed] });
 }
 
 export default { data, execute };
