@@ -2,7 +2,7 @@ import { SlashCommandBuilder, EmbedBuilder, MessageFlags } from 'discord.js';
 
 const data = new SlashCommandBuilder()
   .setName('review')
-  .setDescription('Submit a review for your purchase (only 5-star reviews in English appear on the site)')
+  .setDescription('Submit a review for your purchase (5-star English reviews are shown on the site after review)')
   .addStringOption(opt => opt.setName('name').setDescription('Your display name for the review').setRequired(true))
   .addStringOption(opt => opt.setName('clantag').setDescription('Clash of Clans clan tag (e.g. #AB12CD)').setRequired(true))
   .addIntegerOption(opt => opt.setName('stars').setDescription('Number of stars (1-5)').setMinValue(1).setMaxValue(5).setRequired(true))
@@ -126,8 +126,10 @@ async function execute(interaction) {
   let siteMsg;
   if (eligible) {
     siteMsg = siteRes?.ok
-      ? 'Your review has been submitted and will appear on the site.'
-      : `Your review qualifies, but submitting to the site failed (${siteRes?.status || 'n/a'}).`;
+      ? 'Thanks! Your review has been submitted and will appear on the site after a quick check by our team.'
+      : siteRes?.status === 429
+        ? 'You already submitted a review today. Thanks!'
+        : `Your review qualifies, but submitting to the site failed (${siteRes?.status || 'n/a'}).`;
   } else {
     const needsStars = stars !== 5;
     const needsEnglish = !english;

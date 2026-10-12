@@ -183,9 +183,11 @@ async function postTranscript(channel) {
 
   const transcriptChannel = await channel.client.channels.fetch(TRANSCRIPT_CHANNEL_ID);
 
-  // Send file first to get the CDN URL for the direct link button
+  // Send the file first, then link to that MESSAGE. The attachment's CDN URL
+  // is signed and expires after about a day, so a button pointing at it went
+  // dead; Discord re-signs the attachment whenever the message is opened.
   const fileMsg = await transcriptChannel.send({ files: [htmlAttachment] });
-  const transcriptUrl = fileMsg.attachments.first()?.url;
+  const transcriptUrl = fileMsg.url;
 
   const embed = new EmbedBuilder()
     .setColor(0x5865f2)
@@ -202,7 +204,7 @@ async function postTranscript(channel) {
     components: [{
       type: 2,
       style: 5, // LINK
-      label: 'Direct Transcript',
+      label: 'Open Transcript',
       url: transcriptUrl,
     }],
   }] : [];
