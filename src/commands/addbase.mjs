@@ -73,6 +73,7 @@ async function execute(interaction) {
       notes,
       tags: tagsRaw.split(',').map((t) => t.trim()).filter(Boolean),
       legendMonth: season,
+      channelId: interaction.channelId,
     });
 
     const embed = new EmbedBuilder()
@@ -90,7 +91,7 @@ async function execute(interaction) {
       : '';
     // Surfaced immediately so a wrong default season is caught here rather
     // than discovered later as "the base I posted never arrived".
-    const seasonLine = res.legendMonth ? `\nSeason: **${res.legendMonth}**` : '';
+    const seasonLine = res.legendMonth ? `\nSeason: **${res.legendMonth}**${res.builder ? ` · Builder: **${res.builder}**` : ''}` : '';
 
     // Showing the base publicly is a separate, opt-in step. Every base type
     // goes through this command, including the war and CWL layouts that are

@@ -1,8 +1,12 @@
-import { SlashCommandBuilder, MessageFlags } from 'discord.js';
+import { SlashCommandBuilder, MessageFlags, PermissionFlagsBits } from 'discord.js';
+import { requireStaff } from '../lib/staff-gate.mjs';
 import { postYesterdayLeaderboard } from '../lib/daily-eod-post.mjs';
 
 const data = new SlashCommandBuilder()
     .setName('eod-yesterday-test')
+    // Test/debug tool: hidden from regular members by default. Server admins
+    // can grant it to a role in Server Settings -> Integrations.
+    .setDefaultMemberPermissions(PermissionFlagsBits.ManageGuild)
     .setDescription('Trigger de yesterday Final EOD post handmatig (admin)')
     .addChannelOption(opt =>
         opt.setName('channel')
@@ -16,15 +20,9 @@ const data = new SlashCommandBuilder()
     );
 
 async function execute(interaction) {
-    const requiredRoleId = process.env.SUB_REQUIRED_ROLE_ID;
-    if (requiredRoleId) {
-        const member = await interaction.guild.members.fetch(interaction.user.id);
-        const requiredRole = interaction.guild.roles.cache.get(requiredRoleId);
-        const hasAccess = requiredRole && member.roles.cache.some(r => r.position >= requiredRole.position);
-        if (!hasAccess) {
-            return interaction.reply({ content: 'Je hebt niet de juiste rol om dit commando te gebruiken.', flags: MessageFlags.Ephemeral });
-        }
-    }
+    // Fails closed: a missing SUB_REQUIRED_ROLE_ID used to skip the check and
+    // open these commands -- /sub-add grants paid Legend access -- to everyone.
+    if (!(await requireStaff(interaction, { roleEnv: 'SUB_REQUIRED_ROLE_ID' }))) return;
 
     await interaction.deferReply({ flags: MessageFlags.Ephemeral });
 

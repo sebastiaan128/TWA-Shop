@@ -19,9 +19,9 @@
   "dependencies": {
     "debug": "^4.4.3",
     "discord.js": "^14.16.0",
-    "dotenv": "^16.3.1"
+    "dotenv": "^18.0.6"
   },
   "devDependencies": {
-    "vitest": "^3.2.4"
+    "vitest": "^5.0.3"
   }
 }
