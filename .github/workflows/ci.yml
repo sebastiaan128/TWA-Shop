@@ -26,6 +26,7 @@ jobs:
       # postinstall (scripts/sync-deploy.mjs) only acts inside the hosting
       # container, so it is a no-op here.
       - run: npm ci
+      - run: npm run lint
       - name: Syntax check every module
         run: find src scripts -name '*.mjs' -print0 | xargs -0 -n1 node --check
       # Builds every slash command definition exactly as deploy:commands

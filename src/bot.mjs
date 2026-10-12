@@ -75,9 +75,6 @@ async function postTranscript(channel) {
 
   const panel = panelFromChannelName(channel.name);
   const ownerMention = ownerUser ? `<@${ownerUser.id}>` : 'Unknown';
-  const ownerTag = ownerUser
-    ? `${ownerUser.username}#${ownerUser.discriminator !== '0' ? ownerUser.discriminator : '0'}`
-    : 'Unknown';
 
   const usersValue = sorted.map(({ user, count }) => {
     const display = user.global_name || user.username;

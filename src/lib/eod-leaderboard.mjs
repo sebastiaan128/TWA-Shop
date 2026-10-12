@@ -4,7 +4,7 @@ function sup(n) {
 }
 
 function stripWideChars(s) {
-    return s.replace(/[\p{Extended_Pictographic}‍️​]/gu, '').replace(/\s{2,}/g, ' ').trim();
+    return s.replace(/\p{Extended_Pictographic}|\u200B|\u200D|\uFE0F/gu, '').replace(/\s{2,}/g, ' ').trim();
 }
 
 // Fallback season math, used only when the API response omits the season
