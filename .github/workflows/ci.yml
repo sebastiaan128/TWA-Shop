@@ -1,0 +1,36 @@
+name: CI
+
+on:
+  pull_request:
+  push:
+    branches: [main]
+
+concurrency:
+  group: ci-${{ github.ref }}
+  cancel-in-progress: true
+
+permissions:
+  contents: read
+
+jobs:
+  test:
+    name: Bot (syntax, commands, tests)
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+      # postinstall (scripts/sync-deploy.mjs) only acts inside the hosting
+      # container, so it is a no-op here.
+      - run: npm ci
+      - name: Syntax check every module
+        run: find src scripts -name '*.mjs' -print0 | xargs -0 -n1 node --check
+      # Builds every slash command definition exactly as deploy:commands
+      # would, so an invalid option or a broken import fails here instead of
+      # on the Discord API.
+      - name: Slash commands build
+        run: node --input-type=module -e "const { registerCommands } = await import('./src/commands/index.mjs'); const body = registerCommands.map((c) => c.toJSON()); console.log(body.length, 'commands:', body.map((c) => c.name).join(', '));"
+      - run: npm test
