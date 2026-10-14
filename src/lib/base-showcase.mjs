@@ -47,6 +47,9 @@ export function buildShowcase({ title, saved, screenshotUrl = null, siteUrl }) {
     // The site's canonical text, one kind per line, the way the in-game CC
     // screen groups it. Never the builder's raw input: the site normalises it.
     clanCastle: saved?.cc ? String(saved.cc).split(' · ').join('\n') : null,
+    // The same CC as one line under the title, so it is the first thing a
+    // player reads: "2× Ice Golem, 1× Furnace · 1× Poison".
+    ccLine: ccLine(saved?.cc),
     // Only the copy the site re-hosted. A Discord attachment URL is signed and
     // expires within about a day, so posting that would look right today and
     // be a broken image by tomorrow.
@@ -56,4 +59,38 @@ export function buildShowcase({ title, saved, screenshotUrl = null, siteUrl }) {
     // so the download stays attributable to one person.
     openUrl: `${base}/base/${encodeURIComponent(saved?.id || '')}`,
   };
+}
+
+/** "Troops: 2× Ice Golem · Spells: 1× Poison" -> "2× Ice Golem · 1× Poison", or null. */
+export function ccLine(siteCc) {
+  const text = String(siteCc || '').split(' · ').map((g) => g.replace(/^(Troops|Spells|Siege):\s*/i, '').trim()).filter(Boolean).join(' · ');
+  return text || null;
+}
+
+/**
+ * The channel post as a plain embed (discord.js accepts it as is). The CC sits
+ * right under the title; a base without one says so, so a builder sees it is
+ * missing instead of players guessing.
+ */
+export function showcaseEmbed(show) {
+  return {
+    title: show.title,
+    description: `**CC:** ${show.ccLine || '_not set yet_'}`,
+    color: 0x2a6fae,
+    fields: [
+      { name: 'Town Hall', value: show.townHall, inline: true },
+      ...(show.season ? [{ name: 'Season', value: show.season, inline: true }] : []),
+    ],
+    ...(show.imageUrl ? { image: { url: show.imageUrl } } : {}),
+  };
+}
+
+/**
+ * The CC as written on a post, for prefilling the edit form: the line under
+ * the title, or the "Clan Castle" field of a post from before that line.
+ */
+export function ccFromPost(embed) {
+  const line = String(embed?.description || '').match(/^\*\*CC:\*\*\s*(.+)$/m)?.[1]?.trim();
+  if (line && !/^_.*_$/.test(line)) return line;
+  return embed?.fields?.find((f) => f.name === 'Clan Castle')?.value || '';
 }

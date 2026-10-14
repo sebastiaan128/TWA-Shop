@@ -1,7 +1,7 @@
 import { SlashCommandBuilder, EmbedBuilder, MessageFlags } from 'discord.js';
 import { requireStaff } from '../lib/staff-gate.mjs';
 import { saveBase, updateBase } from '../lib/bases-api.mjs';
-import { buildShowcase, SHOWCASE_REACTIONS } from '../lib/base-showcase.mjs';
+import { buildShowcase, showcaseEmbed, SHOWCASE_REACTIONS } from '../lib/base-showcase.mjs';
 import { editButtonRow } from '../lib/base-edit-button.mjs';
 import { openButtonRow } from '../lib/base-open-button.mjs';
 
@@ -122,13 +122,7 @@ async function execute(interaction) {
             siteUrl: process.env.BASES_API_URL,
           });
 
-          const showEmbed = new EmbedBuilder()
-            .setTitle(show.title)
-            .setColor(0x2a6fae)
-            .addFields({ name: 'Town Hall', value: show.townHall, inline: true });
-          if (show.season) showEmbed.addFields({ name: 'Season', value: show.season, inline: true });
-          if (show.clanCastle) showEmbed.addFields({ name: 'Clan Castle', value: show.clanCastle });
-          if (show.imageUrl) showEmbed.setImage(show.imageUrl);
+          const showEmbed = showcaseEmbed(show);
 
           // A bot button rather than a link straight to the site: the bot is
           // the only place that can see who clicked, which is what lets the
