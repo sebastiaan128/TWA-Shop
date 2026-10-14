@@ -3,7 +3,7 @@ import {
   ModalBuilder, TextInputBuilder, TextInputStyle,
 } from 'discord.js';
 import { updateBase } from './bases-api.mjs';
-import { buildShowcase } from './base-showcase.mjs';
+import { buildShowcase, showcaseEmbed, ccFromPost } from './base-showcase.mjs';
 import { openButtonRow } from './base-open-button.mjs';
 
 /**
@@ -93,7 +93,7 @@ export async function handleEditButton(interaction) {
     .setCustomId('cc').setLabel('Clan Castle ("-" clears it)')
     .setStyle(TextInputStyle.Paragraph).setRequired(false).setMaxLength(500)
     .setPlaceholder('2 super minion, ice golem, poison')
-    .setValue(current?.fields?.find((f) => f.name === 'Clan Castle')?.value?.slice(0, 500) || '');
+    .setValue(ccFromPost(current).slice(0, 500));
 
   modal.addComponents(
     new ActionRowBuilder().addComponents(title),
@@ -146,16 +146,7 @@ export async function handleEditModal(interaction) {
       siteUrl: process.env.BASES_API_URL,
     });
 
-    const embed = {
-      title: show.title,
-      color: 0x2a6fae,
-      fields: [
-        { name: 'Town Hall', value: show.townHall, inline: true },
-        ...(show.season ? [{ name: 'Season', value: show.season, inline: true }] : []),
-        ...(show.clanCastle ? [{ name: 'Clan Castle', value: show.clanCastle }] : []),
-      ],
-      ...(show.imageUrl ? { image: { url: show.imageUrl } } : {}),
-    };
+    const embed = showcaseEmbed(show);
 
     // Rebuilt rather than patched: the download button carries the base id,
     // and dropping the components on an edit would strip it. Rebuilding also

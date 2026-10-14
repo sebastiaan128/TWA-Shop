@@ -1,5 +1,5 @@
 import { describe, it, expect } from 'vitest';
-import { buildShowcase, SHOWCASE_REACTIONS } from './base-showcase.mjs';
+import { buildShowcase, SHOWCASE_REACTIONS, ccLine, ccFromPost, showcaseEmbed } from './base-showcase.mjs';
 
 const SAVED = { id: 'abc123', thLevel: 17, mode: 'HV', legendMonth: 'September 2026', imageHosted: true };
 
@@ -101,5 +101,25 @@ describe('buildShowcase: Clan Castle', () => {
   });
   it('is null when no CC was set', () => {
     expect(buildShowcase({ title: 'T', saved: { id: 'b1', thLevel: 17, cc: '' }, siteUrl: site }).clanCastle).toBe(null);
+  });
+});
+
+describe('showcaseEmbed: CC line under the title', () => {
+  const site = 'https://twabases.com';
+  it('shows the CC as one line, without the kind labels', () => {
+    const show = buildShowcase({ title: 'Drums 2.1', saved: { id: 'b1', thLevel: 18, legendMonth: 'October 2026', cc: 'Troops: 2× Ice Golem, 1× Furnace · Spells: 1× Poison' }, siteUrl: site });
+    const e = showcaseEmbed(show);
+    expect(e.description).toBe('**CC:** 2× Ice Golem, 1× Furnace · 1× Poison');
+    expect(e.fields.map((f) => f.name)).toEqual(['Town Hall', 'Season']);
+  });
+  it('says when there is no CC', () => {
+    const show = buildShowcase({ title: 'T', saved: { id: 'b1', thLevel: 18, cc: '' }, siteUrl: site });
+    expect(showcaseEmbed(show).description).toBe('**CC:** _not set yet_');
+    expect(ccLine('')).toBe(null);
+  });
+  it('reads the CC back from a post, new or old', () => {
+    expect(ccFromPost({ description: '**CC:** 2× Ice Golem · 1× Poison' })).toBe('2× Ice Golem · 1× Poison');
+    expect(ccFromPost({ description: '**CC:** _not set yet_' })).toBe('');
+    expect(ccFromPost({ fields: [{ name: 'Clan Castle', value: 'Troops: 1× Witch' }] })).toBe('Troops: 1× Witch');
   });
 });

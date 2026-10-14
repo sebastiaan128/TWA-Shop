@@ -1,7 +1,7 @@
 import { SlashCommandBuilder, EmbedBuilder, MessageFlags } from 'discord.js';
 import { requireStaff } from '../lib/staff-gate.mjs';
 import { listBases, updateBase } from '../lib/bases-api.mjs';
-import { buildShowcase } from '../lib/base-showcase.mjs';
+import { buildShowcase, showcaseEmbed } from '../lib/base-showcase.mjs';
 import { editButtonRow } from '../lib/base-edit-button.mjs';
 import { openButtonRow } from '../lib/base-open-button.mjs';
 
@@ -126,13 +126,7 @@ async function execute(interaction) {
         siteUrl: process.env.BASES_API_URL,
       });
 
-      const showEmbed = new EmbedBuilder()
-        .setTitle(show.title)
-        .setColor(0x2a6fae)
-        .addFields({ name: 'Town Hall', value: show.townHall, inline: true });
-      if (show.season) showEmbed.addFields({ name: 'Season', value: show.season, inline: true });
-      if (show.clanCastle) showEmbed.addFields({ name: 'Clan Castle', value: show.clanCastle });
-      if (show.imageUrl) showEmbed.setImage(show.imageUrl);
+      const showEmbed = showcaseEmbed(show);
 
       await message.edit({
         embeds: [showEmbed],
