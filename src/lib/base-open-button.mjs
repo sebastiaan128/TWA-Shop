@@ -60,13 +60,39 @@ export function openButtonRow(baseId) {
 export const hasVaticRole = (roleIds, configuredRoleId) =>
   Boolean(configuredRoleId) && Array.isArray(roleIds) && roleIds.includes(configuredRoleId);
 
+/**
+ * What a click gets: 'link' (the raw layout link), 'site' (the personal site
+ * link) or 'denied'.
+ *
+ * Team Winter's basehub is a different server: the site cannot tie its members
+ * to an account, so there it is the basehub role or nothing. Fails closed when
+ * that role is not configured.
+ */
+export function openAccess({ guildId, roleIds, env = process.env }) {
+  if (env.BASEHUB_GUILD_ID && guildId === env.BASEHUB_GUILD_ID) {
+    return hasVaticRole(roleIds, env.BASEHUB_ROLE_ID) ? 'link' : 'denied';
+  }
+  return hasVaticRole(roleIds, env.VATIC_ROLE_ID) ? 'link' : 'site';
+}
+
+// A cached member has roles.cache; one from a server the bot does not cache
+// arrives as the raw payload with an array of ids.
+const memberRoleIds = (member) => {
+  if (member?.roles?.cache) return [...member.roles.cache.keys()];
+  return Array.isArray(member?.roles) ? member.roles : null;
+};
+
 export async function handleOpenButton(interaction) {
   const baseId = baseIdFromOpen(interaction.customId);
-  const roleIds = interaction.member?.roles?.cache
-    ? [...interaction.member.roles.cache.keys()]
-    : null;
+  const access = openAccess({ guildId: interaction.guildId, roleIds: memberRoleIds(interaction.member) });
 
-  if (!hasVaticRole(roleIds, process.env.VATIC_ROLE_ID)) {
+  if (access === 'denied') {
+    return interaction.reply({
+      content: 'You need the required role in this server to open this base.',
+      flags: MessageFlags.Ephemeral,
+    });
+  }
+  if (access === 'site') {
     return sendSiteLink(interaction, baseId);
   }
 

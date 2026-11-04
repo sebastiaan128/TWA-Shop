@@ -1,5 +1,5 @@
 import { describe, it, expect } from 'vitest';
-import { openButtonRow, isOpenBaseId, baseIdFromOpen, hasVaticRole } from './base-open-button.mjs';
+import { openButtonRow, isOpenBaseId, baseIdFromOpen, hasVaticRole, openAccess } from './base-open-button.mjs';
 
 describe('hasVaticRole', () => {
   const VATIC = '1453062350809862154';
@@ -55,5 +55,24 @@ describe('openButtonRow', () => {
 
   it('reads the base id back out of a click', () => {
     expect(baseIdFromOpen('openbase:abc123')).toBe('abc123');
+  });
+});
+
+describe('openAccess', () => {
+  const env = { VATIC_ROLE_ID: 'V', BASEHUB_GUILD_ID: 'HUB', BASEHUB_ROLE_ID: 'R' };
+
+  it('keeps the TWA behaviour: Vatic gets the link, everyone else the site', () => {
+    expect(openAccess({ guildId: 'TWA', roleIds: ['V'], env })).toBe('link');
+    expect(openAccess({ guildId: 'TWA', roleIds: ['R'], env })).toBe('site');
+  });
+
+  it('gives the basehub role the link in the basehub and refuses the rest', () => {
+    expect(openAccess({ guildId: 'HUB', roleIds: ['R'], env })).toBe('link');
+    expect(openAccess({ guildId: 'HUB', roleIds: ['V'], env })).toBe('denied');
+    expect(openAccess({ guildId: 'HUB', roleIds: null, env })).toBe('denied');
+  });
+
+  it('fails closed in the basehub when its role is not configured', () => {
+    expect(openAccess({ guildId: 'HUB', roleIds: ['R'], env: { ...env, BASEHUB_ROLE_ID: '' } })).toBe('denied');
   });
 });
