@@ -1,7 +1,7 @@
 import {
   ActionRowBuilder, ButtonBuilder, ButtonStyle, MessageFlags,
 } from 'discord.js';
-import { getBaseLink } from './bases-api.mjs';
+import { getBaseLink, getBasehubLink } from './bases-api.mjs';
 
 /**
  * The Download button under a posted base.
@@ -62,15 +62,16 @@ export const hasVaticRole = (roleIds, configuredRoleId) =>
 
 /**
  * What a click gets: 'link' (the raw layout link), 'site' (the personal site
- * link) or 'denied'.
+ * link), 'basehub' (a personal /r/ link minted for this member) or 'denied'.
  *
  * Team Winter's basehub is a different server: the site cannot tie its members
- * to an account, so there it is the basehub role or nothing. Fails closed when
- * that role is not configured.
+ * to an account, so the bot asks for a token in the member's name. Never the
+ * raw link there: every open stays logged and a leak points at a person.
+ * Basehub role or nothing; fails closed when that role is not configured.
  */
 export function openAccess({ guildId, roleIds, env = process.env }) {
   if (env.BASEHUB_GUILD_ID && guildId === env.BASEHUB_GUILD_ID) {
-    return hasVaticRole(roleIds, env.BASEHUB_ROLE_ID) ? 'link' : 'denied';
+    return hasVaticRole(roleIds, env.BASEHUB_ROLE_ID) ? 'basehub' : 'denied';
   }
   return hasVaticRole(roleIds, env.VATIC_ROLE_ID) ? 'link' : 'site';
 }
@@ -94,6 +95,9 @@ export async function handleOpenButton(interaction) {
   }
   if (access === 'site') {
     return sendSiteLink(interaction, baseId);
+  }
+  if (access === 'basehub') {
+    return sendBasehubLink(interaction, baseId);
   }
 
   // The site call can take a moment, and an expired interaction token cannot
@@ -150,5 +154,31 @@ function sendSiteLink(interaction, baseId) {
       ),
     ],
     flags: MessageFlags.Ephemeral,
+  });
+}
+
+/** A personal tracked link for a basehub member, as a link button. */
+async function sendBasehubLink(interaction, baseId) {
+  await interaction.deferReply({ flags: MessageFlags.Ephemeral });
+  let base;
+  try {
+    base = await getBasehubLink(baseId, {
+      userId: interaction.user.id,
+      name: interaction.member?.nick || interaction.user.globalName || interaction.user.username,
+    });
+  } catch (e) {
+    return interaction.editReply({ content: `Could not open that base: ${e.message}` });
+  }
+  const th = base.thLevel ? `TH${base.thLevel}${base.mode === 'WB' ? ' (War base)' : ''}` : null;
+  return interaction.editReply({
+    content: [
+      `**${base.title}**${th ? ` — ${th}` : ''}`,
+      'This link is personal and every download is linked to you. Please do not share it.',
+    ].join('\n'),
+    components: [
+      new ActionRowBuilder().addComponents(
+        new ButtonBuilder().setLabel('Open base').setStyle(ButtonStyle.Link).setURL(base.url),
+      ),
+    ],
   });
 }

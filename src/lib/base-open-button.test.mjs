@@ -66,8 +66,8 @@ describe('openAccess', () => {
     expect(openAccess({ guildId: 'TWA', roleIds: ['R'], env })).toBe('site');
   });
 
-  it('gives the basehub role the link in the basehub and refuses the rest', () => {
-    expect(openAccess({ guildId: 'HUB', roleIds: ['R'], env })).toBe('link');
+  it('gives the basehub role a personal tracked link and refuses the rest', () => {
+    expect(openAccess({ guildId: 'HUB', roleIds: ['R'], env })).toBe('basehub');
     expect(openAccess({ guildId: 'HUB', roleIds: ['V'], env })).toBe('denied');
     expect(openAccess({ guildId: 'HUB', roleIds: null, env })).toBe('denied');
   });
