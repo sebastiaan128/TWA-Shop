@@ -55,3 +55,7 @@ export const updateBase = (patch) => call('/api/bot/bases/update', { body: patch
 // bot is the only thing that can see a clicker's Discord roles.
 export const getBaseLink = (id) =>
   call(`/api/bot/bases/link?id=${encodeURIComponent(id)}`, { method: 'GET' });
+// A Team Winter basehub member's personal /r/ link: tracked like a sub's.
+export const getBasehubLink = (id, { userId, name }) =>
+  call(`/api/bot/bases/link?id=${encodeURIComponent(id)}&basehubUser=${encodeURIComponent(userId)}`
+    + `&name=${encodeURIComponent(name || '')}`, { method: 'GET' });
