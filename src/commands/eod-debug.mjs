@@ -1,6 +1,6 @@
 import { SlashCommandBuilder, MessageFlags, PermissionFlagsBits } from 'discord.js';
 import { requireStaff } from '../lib/staff-gate.mjs';
-import { fetchEodSnapshot } from '../lib/eod-leaderboard.mjs';
+import { fetchEodSnapshot, resolveEodRoleId } from '../lib/eod-leaderboard.mjs';
 
 const data = new SlashCommandBuilder()
     .setName('eod-debug')
@@ -22,7 +22,7 @@ async function execute(interaction) {
     await interaction.deferReply({ flags: MessageFlags.Ephemeral });
 
     const query = interaction.options.getString('name', true).toLowerCase();
-    const eodRoleId = process.env.EOD_REQUIRED_ROLE_ID;
+    const eodRoleId = await resolveEodRoleId(interaction.guild);
 
     const data = await fetchEodSnapshot({ refresh: true });
     if (!data?.ok) return interaction.editReply(`API failed: ${data?.error || 'unknown'}`);

@@ -1,5 +1,5 @@
 import { EmbedBuilder } from 'discord.js';
-import { buildEodEmbeds, fetchEodSnapshot, filterActiveSubs } from './eod-leaderboard.mjs';
+import { buildEodEmbeds, fetchEodSnapshot, filterActiveSubs, resolveEodRoleId } from './eod-leaderboard.mjs';
 
 const TWA_COLOR = 0x06b6d4;
 
@@ -32,9 +32,7 @@ async function postLeaderboard(client, {
     logTag = 'eod:daily',
 } = {}) {
     const channelId = channelOverride || process.env.EOD_DAILY_CHANNEL_ID;
-    const requiredRoleId = process.env.EOD_REQUIRED_ROLE_ID;
     if (!channelId) return { ok: false, reason: 'EOD_DAILY_CHANNEL_ID not set' };
-    if (!requiredRoleId) return { ok: false, reason: 'EOD_REQUIRED_ROLE_ID missing' };
 
     let channel;
     try {
@@ -58,6 +56,7 @@ async function postLeaderboard(client, {
 
     let filtered;
     try {
+        const requiredRoleId = await resolveEodRoleId(channel.guild);
         filtered = await filterActiveSubs(channel.guild, data.players, requiredRoleId);
     } catch (err) {
         return { ok: false, reason: `failed to fetch role members: ${err.message}` };

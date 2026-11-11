@@ -1,5 +1,5 @@
 import { SlashCommandBuilder, EmbedBuilder, MessageFlags } from 'discord.js';
-import { buildEodEmbeds, fetchEodSnapshot, filterActiveSubs } from '../lib/eod-leaderboard.mjs';
+import { buildEodEmbeds, fetchEodSnapshot, filterActiveSubs, resolveEodRoleId } from '../lib/eod-leaderboard.mjs';
 
 const TWA_COLOR = 0x06b6d4;
 
@@ -15,10 +15,6 @@ function normaliseTag(raw) {
 async function executeLeaderboard(interaction) {
     await interaction.deferReply();
 
-    const requiredRoleId = process.env.EOD_REQUIRED_ROLE_ID;
-    if (!requiredRoleId) {
-        return interaction.editReply('EOD_REQUIRED_ROLE_ID missing in .env');
-    }
 
     let data;
     try {
@@ -33,6 +29,7 @@ async function executeLeaderboard(interaction) {
 
     let filtered;
     try {
+        const requiredRoleId = await resolveEodRoleId(interaction.guild);
         filtered = await filterActiveSubs(interaction.guild, data.players, requiredRoleId);
     } catch (err) {
         return interaction.editReply(`Failed to fetch role members: ${err.message}`);
