@@ -224,3 +224,24 @@ export async function filterActiveSubs(guild, players, requiredRoleId) {
         .filter((p) => p.discordUserId && roleMemberIds.has(p.discordUserId))
         .map((p, i) => ({ ...p, rank: i + 1 }));
 }
+
+// Rollover moves this channel and grants the active season role access.
+// Resolve from that channel, not the calendar: Legend seasons cross months.
+export async function resolveEodRoleId(guild) {
+    const channelId = process.env.EOD_DAILY_CHANNEL_ID;
+    if (!channelId) throw new Error('EOD_DAILY_CHANNEL_ID missing');
+    const channel = await guild.channels.fetch(channelId);
+    if (!channel?.permissionOverwrites) throw new Error('EOD channel permissions unavailable');
+    const roles = await guild.roles.fetch();
+    const monthRole = /^LL (January|February|March|April|May|June|July|August|September|October|November|December)(?: \d{4})?$/i;
+    const candidates = [...channel.permissionOverwrites.cache.values()].filter(overwrite =>
+        overwrite.type === 0
+        && overwrite.allow.has(1024n) // ViewChannel
+        && !overwrite.deny.has(1024n)
+        && monthRole.test(roles.get(overwrite.id)?.name || '')
+    );
+    if (candidates.length !== 1) {
+        throw new Error(`Expected one active LL month role on EOD channel, found ${candidates.length}`);
+    }
+    return candidates[0].id;
+}
