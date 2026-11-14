@@ -1,3 +1,4 @@
+import { cocApiBase } from '../lib/coc-api.mjs';
 import { SlashCommandBuilder, EmbedBuilder, MessageFlags } from 'discord.js';
 
 /**
@@ -29,8 +30,9 @@ async function fetchClan(tag, token) {
   const encoded = encodeClanTag(tag);
   const { signal, cancel } = withTimeout(10_000);
   try {
-    const resp = await fetch(`https://api.clashofclans.com/v1/clans/${encoded}`, {
+    const resp = await fetch(`${cocApiBase()}/clans/${encoded}`, {
       headers: { Authorization: `Bearer ${token}` },
+      redirect: 'error',
       signal
     });
     if (!resp.ok) {
