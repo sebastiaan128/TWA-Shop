@@ -73,3 +73,7 @@ je thuis-IP toe te voegen. De CoC-sleutel en aanvragen gaan via RoyaleAPI; zie
 https://docs.royaleapi.com/proxy. Zonder `COC_API_BASE_URL` blijft de officiële
 API de default, met de gebruikelijke IP-beperking. Onbekende endpoints en
 redirects worden geweigerd. Gebruik `npm test` voor tests zonder Discord-login.
+
+CoC-verbinding alleen-lezen controleren: `npm run check:coc`. Dit vraagt één
+clan op, controleert het antwoord en toont geen secrets of Discord-berichten.
+Met `COC_CHECK_CLAN_TAG` kan een andere clantag worden gekozen.

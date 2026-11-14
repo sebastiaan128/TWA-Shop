@@ -12,7 +12,8 @@
     "lint": "eslint .",
     "deploy:commands": "node src/deploy-commands.mjs",
     "invite:url": "node src/create-invite-url.mjs",
-    "postinstall": "node scripts/sync-deploy.mjs"
+    "postinstall": "node scripts/sync-deploy.mjs",
+    "check:coc": "node scripts/check-coc.mjs"
   },
   "engines": {
     "node": ">=18.17"
