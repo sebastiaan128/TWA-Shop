@@ -29,7 +29,7 @@ describe('/review', () => {
       return new Response(JSON.stringify({ ok: true, id: 'r1' }), { status: 200 });
     }));
   });
-  afterEach(() => vi.unstubAllGlobals());
+  afterEach(() => { vi.unstubAllGlobals(); vi.unstubAllEnvs(); });
 
   it('needs only stars and a message; name defaults to the server display name', async () => {
     const i = interaction({ stars: 3, message: 'Solid bases, one got tripled.' });
@@ -57,4 +57,24 @@ describe('/review', () => {
     await review.execute(i);
     expect(i.replies[0]).toMatch(/already left a review today/);
   });
+  it('routes the optional clan lookup through the approved proxy without changing review submission', async () => {
+    vi.stubEnv('COC_API_BASE_URL', 'https://cocproxy.royaleapi.dev/v1');
+    vi.stubEnv('COC_API_TOKEN', 'fake-coc-token');
+    const calls = [];
+    fetch.mockImplementation(async (url, init) => {
+      calls.push({ url, init });
+      return url.includes('/clans/')
+        ? new Response(JSON.stringify({ tag: '#P0', name: 'Proxy Clan', badgeUrls: { medium: 'https://badge.test/image.png' } }))
+        : new Response(JSON.stringify({ ok: true, id: 'r1' }));
+    });
+    const i = interaction({ stars: 5, message: 'Great bases all season long!', clantag: '#P0' });
+    await review.execute(i);
+    expect(calls[0].url).toBe('https://cocproxy.royaleapi.dev/v1/clans/%23P0');
+    expect(calls[0].init.redirect).toBe('error');
+    expect(calls[0].init.headers.Authorization).toBe('Bearer fake-coc-token');
+    expect(calls[1].url).toBe('https://site/api/reviews/submit');
+    expect(JSON.parse(calls[1].init.body).clanName).toBe('Proxy Clan');
+    expect(i.replies[0].content).toMatch(/review is in/);
+  });
+
 });

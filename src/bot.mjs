@@ -1,6 +1,7 @@
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
 import dotenv from 'dotenv';
+import { cocApiBase } from './lib/coc-api.mjs';
 import { Client, GatewayIntentBits, Partials, Events, REST, Routes, EmbedBuilder, MessageFlags, AttachmentBuilder } from 'discord.js';
 import { buildTranscriptHtml } from './lib/ticket-transcript.mjs';
 import { registerCommandsMap } from './commands/index.mjs';
@@ -11,6 +12,7 @@ import { isOpenBaseId, handleOpenButton } from './lib/base-open-button.mjs';
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
 dotenv.config({ path: path.resolve(__dirname, '../.env') });
+cocApiBase();
 
 const token = process.env.DISCORD_BOT_TOKEN;
 const clientId = process.env.DISCORD_CLIENT_ID;
